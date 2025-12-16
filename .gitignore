@@ -53,3 +53,6 @@ documentation/delivery/
 # Test hooks (temporary testing artifacts)
 generated-hooks/test-*/
 generated-hooks/integration-test-*/
+
+.claude/data/
+.claude/logs/
