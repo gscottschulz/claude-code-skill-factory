@@ -54,5 +54,4 @@ documentation/delivery/
 generated-hooks/test-*/
 generated-hooks/integration-test-*/
 
-.claude/data/
-.claude/logs/
+.claude/*
