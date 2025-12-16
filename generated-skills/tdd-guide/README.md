@@ -323,7 +323,7 @@ Phase: RED (write failing test)
 ```
 
 **Output**:
-```markdown
+````markdown
 ## TDD Phase: RED
 
 ### Goal
@@ -363,16 +363,17 @@ describe('EmailValidator', () => {
 1. Run the test (it should fail)
 2. Verify failure: "EmailValidator is not defined" or similar
 3. Share test result to proceed to GREEN phase
-```
+````
 
 ### Example 4: Test Quality Review
 
 **Input**:
-```
+````
 @tdd-guide
 
 Review test quality:
 
+```python
 def test_user_login():
     result = login("admin", "password123")
     assert result
@@ -381,9 +382,10 @@ def test_user_login():
     assert result["user"]["id"] > 0
     assert result["user"]["role"] == "admin"
 ```
+````
 
 **Output**:
-```markdown
+````markdown
 ## Test Quality Analysis
 
 **Overall Score**: 62/100
@@ -435,7 +437,7 @@ def test_successful_login_returns_user_data(admin_user):
 - Isolation Score: 55 → 90 (with fixtures)
 - Naming Quality: 40 → 85 (descriptive names)
 - Test Focus: 30 → 95 (one assertion per test)
-```
+````
 
 ## Configuration
 
