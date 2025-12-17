@@ -2,10 +2,26 @@
 
 ## Authentication
 
+PAT can be passed directly or fall back to environment variables:
+
 ```typescript
-const authToken = Buffer.from(`:${process.env.ADO_PAT}`).toString('base64');
+// Option 1: Direct PAT (recommended for multi-tenant/dynamic scenarios)
+const config = {
+  organization: 'my-org',
+  pat: 'my-personal-access-token',
+};
+
+// Option 2: Environment variable fallback
+const organization = config.organization || process.env.ADO_ORGANIZATION;
+const pat = config.pat || process.env.ADO_PAT;
+
+if (!organization || !pat) {
+  throw new Error('Organization and PAT required (via config or env vars)');
+}
+
+const authToken = Buffer.from(`:${pat}`).toString('base64');
 const headers = { Authorization: `Basic ${authToken}` };
-const baseUrl = `https://dev.azure.com/${process.env.ADO_ORGANIZATION}`;
+const baseUrl = `https://dev.azure.com/${organization}`;
 ```
 
 ---
@@ -169,12 +185,16 @@ WHERE [System.ChangedDate] >= @today - 7
 
 ---
 
-## Environment Variables
+## Environment Variables (Fallback)
+
+Used when `organization` or `pat` are not passed directly:
 
 ```bash
 export ADO_ORGANIZATION="your-org-name"
 export ADO_PAT="your-personal-access-token"
 ```
+
+**Priority**: Direct config parameters take precedence over environment variables.
 
 ---
 

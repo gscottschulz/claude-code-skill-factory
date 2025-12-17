@@ -1,56 +1,120 @@
 # Azure DevOps REST API v7.1 Skill
 
-Comprehensive skill for interacting with Azure DevOps REST API version 7.1. Covers Work Items, Git, Pipelines, and Projects APIs with TypeScript patterns, authentication, error handling, and rate limiting.
+Comprehensive skill for interacting with Azure DevOps REST API version 7.1. Covers Work Items, Git, Pipelines, and Projects APIs with Python client patterns, authentication, and error handling.
 
 ---
 
 ## Quick Start
 
-```typescript
-// Environment variables required
-const organization = process.env.ADO_ORGANIZATION;
-const pat = process.env.ADO_PAT;
+### ⚠️ IMPORTANT: Use `uv` to Run This Skill
 
-// Base URL pattern
-const baseUrl = `https://dev.azure.com/${organization}`;
+This skill requires the `requests` library. **Always use `uv` to run scripts** - it handles dependencies automatically and works on modern macOS/Linux systems.
 
-// Authentication header
-const authToken = Buffer.from(`:${pat}`).toString('base64');
-const headers = {
-  Authorization: `Basic ${authToken}`,
-  'Content-Type': 'application/json',
-  Accept: 'application/json',
-};
+```bash
+# Navigate to the skill directory
+cd path/to/ado-api/
 
-// API version query parameter
-const apiVersion = '7.1';
+# Run any script with uv (dependencies handled automatically)
+uv run --with requests python3 your_script.py
+```
+
+### Environment Variables
+
+Set your Azure DevOps credentials before running:
+
+```bash
+export ADO_ORGANIZATION="your-org-name"
+export ADO_PAT="your-personal-access-token"
+
+# Or use a custom PAT variable name by passing it directly to the client
+```
+
+### Example Usage
+
+```python
+from ado_client import AzureDevOpsClient
+import os
+
+# Option 1: Use default environment variables (ADO_ORGANIZATION and ADO_PAT)
+client = AzureDevOpsClient()
+
+# Option 2: Pass credentials directly (useful for custom env var names)
+client = AzureDevOpsClient(
+    organization=os.getenv("ADO_ORGANIZATION"),
+    pat=os.getenv("MY_CUSTOM_PAT_VAR")  # Use any env var name you want
+)
+
+# All methods return {"success": True, "data": {...}} or {"success": False, "error": {...}}
+result = client.get_work_item("MyProject", 12345)
+if result["success"]:
+    print(result["data"]["fields"]["System.Title"])
+else:
+    print(f"Error: {result['error']['message']}")
+```
+
+### One-Liner Example
+
+```bash
+# List first 10 work items from a project
+ADO_ORGANIZATION=myorg ADO_PAT=$MY_PAT uv run --with requests python3 -c "
+from ado_client import AzureDevOpsClient
+client = AzureDevOpsClient()
+result = client.query_work_items('MyProject', 'SELECT [System.Id], [System.Title] FROM WorkItems', top=10)
+if result['success']:
+    for wi in result['data']['workItems']:
+        print(f\"Work Item #{wi['id']}\")
+"
+```
+
+---
+
+## Response Format
+
+All client methods return a consistent dictionary format:
+
+```python
+# Success response
+{"success": True, "data": {...}}
+
+# Error response
+{"success": False, "error": {"status_code": 404, "message": "..."}}
 ```
 
 ---
 
 ## Table of Contents
 
-1. [Authentication](#authentication)
-2. [Configuration](#configuration)
-3. [Work Items API](#work-items-api)
-4. [Git API](#git-api)
-5. [Pipelines API](#pipelines-api)
-6. [Projects API](#projects-api)
-7. [WIQL Reference](#wiql-reference)
-8. [Error Handling](#error-handling)
-9. [Rate Limiting](#rate-limiting)
-10. [TypeScript Client Pattern](#typescript-client-pattern)
+1. [Quick Start](#quick-start)
+2. [Authentication](#authentication)
+3. [Response Format](#response-format)
+4. [Work Items API](#work-items-api)
+5. [Git API](#git-api)
+6. [Pipelines API](#pipelines-api)
+7. [Projects API](#projects-api)
+8. [WIQL Reference](#wiql-reference)
+9. [Error Handling](#error-handling)
+10. [Python Client](#python-client)
 
 ---
 
 ## Authentication
 
-### Environment Variables
+### Authentication Options
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `ADO_ORGANIZATION` | Azure DevOps organization name | Yes |
-| `ADO_PAT` | Personal Access Token | Yes |
+1. **Environment Variables** (Recommended for CI/CD)
+   - Set `ADO_ORGANIZATION` and `ADO_PAT` environment variables
+   - Client automatically uses these if no parameters provided
+
+2. **Direct Parameters** (For multi-tenant scenarios)
+   - Pass `organization` and `pat` to the constructor
+   - Takes precedence over environment variables
+
+### Configuration Priority
+
+| Parameter | Direct Config | Environment Fallback | Required |
+|-----------|---------------|---------------------|----------|
+| `organization` | Constructor param | `ADO_ORGANIZATION` | Yes |
+| `pat` | Constructor param | `ADO_PAT` | Yes |
 
 ### PAT Scopes Required
 
@@ -65,43 +129,6 @@ const apiVersion = '7.1';
 | `vso.build_execute` | Run pipelines, queue builds |
 | `vso.project` | Read projects and teams |
 
-### Authentication Header
-
-```typescript
-function createAuthHeader(pat: string): string {
-  const authToken = Buffer.from(`:${pat}`).toString('base64');
-  return `Basic ${authToken}`;
-}
-```
-
----
-
-## Configuration
-
-### Recommended Defaults
-
-```typescript
-interface AzureDevOpsClientConfig {
-  organization: string;       // From ADO_ORGANIZATION
-  pat: string;               // From ADO_PAT
-  apiVersion: string;        // '7.1'
-  timeout: number;           // 30000 (30 seconds)
-  retryConfig: {
-    maxRetries: number;      // 3
-    baseDelay: number;       // 1000 (1 second)
-  };
-}
-```
-
-### Base URLs
-
-| Service | URL Pattern |
-|---------|-------------|
-| Core APIs | `https://dev.azure.com/{organization}` |
-| VS RM (Release) | `https://vsrm.dev.azure.com/{organization}` |
-| Feeds (Artifacts) | `https://feeds.dev.azure.com/{organization}` |
-| VS Aex (Extensions) | `https://extmgmt.dev.azure.com/{organization}` |
-
 ---
 
 ## Work Items API
@@ -112,33 +139,23 @@ interface AzureDevOpsClientConfig {
 GET /{project}/_apis/wit/workitems/{id}?api-version=7.1
 ```
 
-**Query Parameters:**
+**Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `$expand` | string | `None`, `Relations`, `Fields`, `Links`, `All` |
-| `fields` | string | Comma-separated field names |
-| `asOf` | datetime | Get work item as of specific date |
+| `expand` | string | `None`, `Relations`, `Fields`, `Links`, `All` (default: `All`) |
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function getWorkItem(
-  project: string,
-  workItemId: number,
-  expand: 'None' | 'Relations' | 'Fields' | 'Links' | 'All' = 'All'
-): Promise<WorkItem> {
-  const response = await httpClient.get(
-    `/${project}/_apis/wit/workitems/${workItemId}`,
-    {
-      params: {
-        'api-version': '7.1',
-        '$expand': expand,
-      },
-    }
-  );
-  return response.data;
-}
+```python
+from ado_client import AzureDevOpsClient
+
+client = AzureDevOpsClient()
+result = client.get_work_item("MyProject", 12345)
+# Result: {"success": True, "data": {"id": 12345, "fields": {...}}}
+
+# With specific expansion
+result = client.get_work_item("MyProject", 12345, expand="Relations")
 ```
 
 **Response:**
@@ -155,15 +172,9 @@ async function getWorkItem(
     "System.AssignedTo": {
       "displayName": "John Doe",
       "uniqueName": "john.doe@company.com"
-    },
-    "System.CreatedDate": "2024-01-15T10:30:00Z",
-    "System.ChangedDate": "2024-01-20T14:45:00Z",
-    "System.Description": "<div>Description HTML</div>",
-    "Microsoft.VSTS.Common.Priority": 2,
-    "Microsoft.VSTS.Scheduling.StoryPoints": 5
+    }
   },
   "relations": [...],
-  "_links": {...},
   "url": "https://dev.azure.com/{org}/{project}/_apis/wit/workitems/12345"
 }
 ```
@@ -176,36 +187,25 @@ async function getWorkItem(
 GET /{project}/_apis/wit/workitems?ids={ids}&api-version=7.1
 ```
 
-**Query Parameters:**
+**Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `ids` | string | Comma-separated work item IDs (max 200) |
-| `$expand` | string | Expansion options |
-| `fields` | string | Comma-separated field names |
-| `errorPolicy` | string | `Fail` or `Omit` |
+| `ids` | List[int] | Work item IDs (max 200) |
+| `fields` | List[str] | Optional field names to return |
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function getWorkItems(
-  project: string,
-  ids: number[],
-  fields?: string[]
-): Promise<WorkItem[]> {
-  const response = await httpClient.get(
-    `/${project}/_apis/wit/workitems`,
-    {
-      params: {
-        'api-version': '7.1',
-        'ids': ids.join(','),
-        'fields': fields?.join(','),
-        'errorPolicy': 'Omit',
-      },
-    }
-  );
-  return response.data.value;
-}
+```python
+result = client.get_work_items("MyProject", [12345, 12346, 12347])
+# Result: {"success": True, "data": {"value": [...]}}
+
+# With specific fields
+result = client.get_work_items(
+    "MyProject",
+    [12345, 12346],
+    fields=["System.Title", "System.State"]
+)
 ```
 
 ---
@@ -214,76 +214,22 @@ async function getWorkItems(
 
 ```
 POST /{project}/_apis/wit/workitems/${type}?api-version=7.1
-Content-Type: application/json-patch+json
 ```
 
-**Request Body (JSON Patch):**
+**Python:**
 
-```json
-[
-  {
-    "op": "add",
-    "path": "/fields/System.Title",
-    "value": "New work item title"
-  },
-  {
-    "op": "add",
-    "path": "/fields/System.Description",
-    "value": "<div>Description</div>"
-  },
-  {
-    "op": "add",
-    "path": "/fields/System.AssignedTo",
-    "value": "user@company.com"
-  },
-  {
-    "op": "add",
-    "path": "/fields/Microsoft.VSTS.Common.Priority",
-    "value": 2
-  }
-]
-```
+```python
+result = client.create_work_item("MyProject", "User Story", {
+    "System.Title": "Implement login feature",
+    "System.Description": "<div>As a user, I want to log in</div>",
+    "Microsoft.VSTS.Common.Priority": 1,
+    "Microsoft.VSTS.Scheduling.StoryPoints": 8
+})
+# Result: {"success": True, "data": {"id": 12348, "fields": {...}}}
 
-**TypeScript:**
-
-```typescript
-interface JsonPatchOperation {
-  op: 'add' | 'remove' | 'replace' | 'test';
-  path: string;
-  value?: unknown;
-}
-
-async function createWorkItem(
-  project: string,
-  workItemType: string,
-  fields: Record<string, unknown>
-): Promise<WorkItem> {
-  const operations: JsonPatchOperation[] = Object.entries(fields).map(
-    ([field, value]) => ({
-      op: 'add',
-      path: `/fields/${field}`,
-      value,
-    })
-  );
-
-  const response = await httpClient.post(
-    `/${project}/_apis/wit/workitems/$${workItemType}`,
-    operations,
-    {
-      params: { 'api-version': '7.1' },
-      headers: { 'Content-Type': 'application/json-patch+json' },
-    }
-  );
-  return response.data;
-}
-
-// Usage
-const workItem = await createWorkItem('MyProject', 'User Story', {
-  'System.Title': 'Implement login feature',
-  'System.Description': '<div>As a user, I want to log in</div>',
-  'Microsoft.VSTS.Common.Priority': 1,
-  'Microsoft.VSTS.Scheduling.StoryPoints': 8,
-});
+if result["success"]:
+    new_id = result["data"]["id"]
+    print(f"Created work item: {new_id}")
 ```
 
 ---
@@ -292,41 +238,16 @@ const workItem = await createWorkItem('MyProject', 'User Story', {
 
 ```
 PATCH /{project}/_apis/wit/workitems/{id}?api-version=7.1
-Content-Type: application/json-patch+json
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function updateWorkItem(
-  project: string,
-  workItemId: number,
-  updates: Record<string, unknown>
-): Promise<WorkItem> {
-  const operations: JsonPatchOperation[] = Object.entries(updates).map(
-    ([field, value]) => ({
-      op: 'replace',
-      path: `/fields/${field}`,
-      value,
-    })
-  );
-
-  const response = await httpClient.patch(
-    `/${project}/_apis/wit/workitems/${workItemId}`,
-    operations,
-    {
-      params: { 'api-version': '7.1' },
-      headers: { 'Content-Type': 'application/json-patch+json' },
-    }
-  );
-  return response.data;
-}
-
-// Usage - Update state and add comment
-await updateWorkItem('MyProject', 12345, {
-  'System.State': 'Resolved',
-  'System.History': 'Fixed the bug by updating the validation logic.',
-});
+```python
+result = client.update_work_item("MyProject", 12345, {
+    "System.State": "Resolved",
+    "System.History": "Fixed the bug by updating validation logic."
+})
+# Result: {"success": True, "data": {"id": 12345, "rev": 6, ...}}
 ```
 
 ---
@@ -337,30 +258,14 @@ await updateWorkItem('MyProject', 12345, {
 DELETE /{project}/_apis/wit/workitems/{id}?api-version=7.1
 ```
 
-**Query Parameters:**
+**Python:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `destroy` | boolean | `true` to permanently delete, `false` to recycle |
+```python
+# Move to recycle bin (default)
+result = client.delete_work_item("MyProject", 12345)
 
-**TypeScript:**
-
-```typescript
-async function deleteWorkItem(
-  project: string,
-  workItemId: number,
-  permanent: boolean = false
-): Promise<void> {
-  await httpClient.delete(
-    `/${project}/_apis/wit/workitems/${workItemId}`,
-    {
-      params: {
-        'api-version': '7.1',
-        'destroy': permanent,
-      },
-    }
-  );
-}
+# Permanently delete
+result = client.delete_work_item("MyProject", 12345, permanent=True)
 ```
 
 ---
@@ -371,58 +276,25 @@ async function deleteWorkItem(
 POST /{project}/_apis/wit/wiql?api-version=7.1
 ```
 
-**Request Body:**
+**Python:**
 
-```json
-{
-  "query": "SELECT [System.Id], [System.Title], [System.State] FROM WorkItems WHERE [System.TeamProject] = @project AND [System.WorkItemType] = 'Bug' AND [System.State] <> 'Closed' ORDER BY [Microsoft.VSTS.Common.Priority] ASC, [System.CreatedDate] DESC"
-}
-```
+```python
+wiql = """
+SELECT [System.Id], [System.Title], [System.State]
+FROM WorkItems
+WHERE [System.TeamProject] = @project
+  AND [System.WorkItemType] = 'Bug'
+  AND [System.State] IN ('New', 'Active')
+ORDER BY [Microsoft.VSTS.Common.Priority] ASC
+"""
 
-**TypeScript:**
+result = client.query_work_items("MyProject", wiql, top=100)
+# Result: {"success": True, "data": {"workItems": [{"id": 123}, ...]}}
 
-```typescript
-interface WiqlResult {
-  queryType: 'flat' | 'oneHop' | 'tree';
-  queryResultType: 'workItem' | 'workItemLink';
-  asOf: string;
-  columns: Array<{ referenceName: string; name: string; url: string }>;
-  workItems: Array<{ id: number; url: string }>;
-}
-
-async function queryWorkItems(
-  project: string,
-  wiql: string,
-  top?: number
-): Promise<WiqlResult> {
-  const response = await httpClient.post(
-    `/${project}/_apis/wit/wiql`,
-    { query: wiql },
-    {
-      params: {
-        'api-version': '7.1',
-        '$top': top,
-      },
-    }
-  );
-  return response.data;
-}
-
-// Usage - Get all active bugs
-const result = await queryWorkItems(
-  'MyProject',
-  `SELECT [System.Id], [System.Title], [System.State], [System.AssignedTo]
-   FROM WorkItems
-   WHERE [System.TeamProject] = @project
-     AND [System.WorkItemType] = 'Bug'
-     AND [System.State] IN ('New', 'Active')
-   ORDER BY [Microsoft.VSTS.Common.Priority] ASC`,
-  100
-);
-
-// Fetch full work items from IDs
-const workItemIds = result.workItems.map(wi => wi.id);
-const workItems = await getWorkItems('MyProject', workItemIds);
+if result["success"]:
+    work_item_ids = [wi["id"] for wi in result["data"]["workItems"]]
+    # Fetch full details
+    details = client.get_work_items("MyProject", work_item_ids)
 ```
 
 ---
@@ -433,36 +305,14 @@ const workItems = await getWorkItems('MyProject', workItemIds);
 GET /{project}/_apis/wit/workitems/{id}/comments?api-version=7.1-preview.4
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface WorkItemComment {
-  id: number;
-  workItemId: number;
-  text: string;
-  version: number;
-  createdBy: IdentityRef;
-  createdDate: string;
-  modifiedBy: IdentityRef;
-  modifiedDate: string;
-}
+```python
+result = client.get_work_item_comments("MyProject", 12345)
+# Result: {"success": True, "data": {"comments": [...]}}
 
-async function getWorkItemComments(
-  project: string,
-  workItemId: number,
-  top?: number
-): Promise<WorkItemComment[]> {
-  const response = await httpClient.get(
-    `/${project}/_apis/wit/workitems/${workItemId}/comments`,
-    {
-      params: {
-        'api-version': '7.1-preview.4',
-        '$top': top,
-      },
-    }
-  );
-  return response.data.comments;
-}
+# Limit results
+result = client.get_work_item_comments("MyProject", 12345, top=10)
 ```
 
 ---
@@ -473,93 +323,42 @@ async function getWorkItemComments(
 POST /{project}/_apis/wit/workitems/{id}/comments?api-version=7.1-preview.4
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function addWorkItemComment(
-  project: string,
-  workItemId: number,
-  text: string
-): Promise<WorkItemComment> {
-  const response = await httpClient.post(
-    `/${project}/_apis/wit/workitems/${workItemId}/comments`,
-    { text },
-    {
-      params: { 'api-version': '7.1-preview.4' },
-    }
-  );
-  return response.data;
-}
+```python
+result = client.add_work_item_comment(
+    "MyProject",
+    12345,
+    "Investigation complete. Root cause identified."
+)
 ```
 
 ---
 
 ### Link Work Items
 
-```
-PATCH /{project}/_apis/wit/workitems/{id}?api-version=7.1
-Content-Type: application/json-patch+json
-```
-
 **Link Types:**
 
-| Link Type | Relation Name | Description |
-|-----------|---------------|-------------|
-| Parent | `System.LinkTypes.Hierarchy-Reverse` | Parent work item |
-| Child | `System.LinkTypes.Hierarchy-Forward` | Child work item |
-| Related | `System.LinkTypes.Related` | Related work item |
-| Duplicate | `System.LinkTypes.Duplicate-Forward` | Duplicate of |
-| Duplicate Of | `System.LinkTypes.Duplicate-Reverse` | Is duplicated by |
-| Successor | `System.LinkTypes.Dependency-Forward` | Successor |
-| Predecessor | `System.LinkTypes.Dependency-Reverse` | Predecessor |
-| Tested By | `Microsoft.VSTS.Common.TestedBy-Forward` | Tested by test case |
-| Tests | `Microsoft.VSTS.Common.TestedBy-Reverse` | Tests work item |
+| Link Type | Relation Name |
+|-----------|---------------|
+| Parent | `System.LinkTypes.Hierarchy-Reverse` |
+| Child | `System.LinkTypes.Hierarchy-Forward` |
+| Related | `System.LinkTypes.Related` |
+| Duplicate | `System.LinkTypes.Duplicate-Forward` |
+| Successor | `System.LinkTypes.Dependency-Forward` |
+| Predecessor | `System.LinkTypes.Dependency-Reverse` |
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function linkWorkItems(
-  project: string,
-  sourceId: number,
-  targetId: number,
-  linkType: string,
-  comment?: string
-): Promise<WorkItem> {
-  const targetUrl = `https://dev.azure.com/${process.env.ADO_ORGANIZATION}/${project}/_apis/wit/workitems/${targetId}`;
-
-  const operations: JsonPatchOperation[] = [
-    {
-      op: 'add',
-      path: '/relations/-',
-      value: {
-        rel: linkType,
-        url: targetUrl,
-        attributes: {
-          comment: comment || '',
-        },
-      },
-    },
-  ];
-
-  const response = await httpClient.patch(
-    `/${project}/_apis/wit/workitems/${sourceId}`,
-    operations,
-    {
-      params: { 'api-version': '7.1' },
-      headers: { 'Content-Type': 'application/json-patch+json' },
-    }
-  );
-  return response.data;
-}
-
-// Usage - Create parent-child relationship
-await linkWorkItems(
-  'MyProject',
-  12345,                                    // Parent ID
-  12346,                                    // Child ID
-  'System.LinkTypes.Hierarchy-Forward',    // Child link type
-  'Adding task as child of user story'
-);
+```python
+# Create parent-child relationship
+result = client.link_work_items(
+    "MyProject",
+    source_id=12345,
+    target_id=12346,
+    link_type="System.LinkTypes.Hierarchy-Forward",
+    comment="Adding task as child of user story"
+)
 ```
 
 ---
@@ -570,27 +369,14 @@ await linkWorkItems(
 GET /{project}/_apis/wit/workitems/{id}/revisions?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function getWorkItemRevisions(
-  project: string,
-  workItemId: number,
-  top?: number,
-  skip?: number
-): Promise<WorkItem[]> {
-  const response = await httpClient.get(
-    `/${project}/_apis/wit/workitems/${workItemId}/revisions`,
-    {
-      params: {
-        'api-version': '7.1',
-        '$top': top,
-        '$skip': skip,
-      },
-    }
-  );
-  return response.data.value;
-}
+```python
+result = client.get_work_item_revisions("MyProject", 12345)
+# Result: {"success": True, "data": {"value": [...]}}
+
+# With pagination
+result = client.get_work_item_revisions("MyProject", 12345, top=10, skip=0)
 ```
 
 ---
@@ -599,69 +385,21 @@ async function getWorkItemRevisions(
 
 ```
 POST /{project}/_apis/wit/attachments?api-version=7.1
-Content-Type: application/octet-stream
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface AttachmentReference {
-  id: string;
-  url: string;
-}
+```python
+with open("screenshot.png", "rb") as f:
+    content = f.read()
 
-async function uploadAttachment(
-  project: string,
-  fileName: string,
-  content: Buffer
-): Promise<AttachmentReference> {
-  const response = await httpClient.post(
-    `/${project}/_apis/wit/attachments`,
-    content,
-    {
-      params: {
-        'api-version': '7.1',
-        'fileName': fileName,
-      },
-      headers: {
-        'Content-Type': 'application/octet-stream',
-      },
-    }
-  );
-  return response.data;
-}
+result = client.upload_attachment("MyProject", "screenshot.png", content)
+# Result: {"success": True, "data": {"id": "...", "url": "..."}}
 
-// Then link attachment to work item
-async function attachToWorkItem(
-  project: string,
-  workItemId: number,
-  attachmentUrl: string,
-  comment?: string
-): Promise<WorkItem> {
-  const operations: JsonPatchOperation[] = [
-    {
-      op: 'add',
-      path: '/relations/-',
-      value: {
-        rel: 'AttachedFile',
-        url: attachmentUrl,
-        attributes: {
-          comment: comment || '',
-        },
-      },
-    },
-  ];
-
-  const response = await httpClient.patch(
-    `/${project}/_apis/wit/workitems/${workItemId}`,
-    operations,
-    {
-      params: { 'api-version': '7.1' },
-      headers: { 'Content-Type': 'application/json-patch+json' },
-    }
-  );
-  return response.data;
-}
+if result["success"]:
+    attachment_url = result["data"]["url"]
+    # Attach to work item
+    client.attach_to_work_item("MyProject", 12345, attachment_url, "Bug screenshot")
 ```
 
 ---
@@ -674,31 +412,15 @@ async function attachToWorkItem(
 GET /{project}/_apis/git/repositories?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface GitRepository {
-  id: string;
-  name: string;
-  url: string;
-  project: TeamProjectReference;
-  defaultBranch: string;
-  size: number;
-  remoteUrl: string;
-  sshUrl: string;
-  webUrl: string;
-  isDisabled: boolean;
-}
+```python
+result = client.list_repositories("MyProject")
+# Result: {"success": True, "data": {"value": [{"id": "...", "name": "my-repo", ...}]}}
 
-async function listRepositories(project: string): Promise<GitRepository[]> {
-  const response = await httpClient.get(
-    `/${project}/_apis/git/repositories`,
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-  return response.data.value;
-}
+if result["success"]:
+    for repo in result["data"]["value"]:
+        print(f"{repo['name']}: {repo['id']}")
 ```
 
 ---
@@ -709,21 +431,12 @@ async function listRepositories(project: string): Promise<GitRepository[]> {
 GET /{project}/_apis/git/repositories/{repositoryId}?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function getRepository(
-  project: string,
-  repositoryIdOrName: string
-): Promise<GitRepository> {
-  const response = await httpClient.get(
-    `/${project}/_apis/git/repositories/${repositoryIdOrName}`,
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-  return response.data;
-}
+```python
+result = client.get_repository("MyProject", "my-repo")
+# or by ID
+result = client.get_repository("MyProject", "abc123-def456")
 ```
 
 ---
@@ -734,60 +447,21 @@ async function getRepository(
 GET /{project}/_apis/git/repositories/{repositoryId}/pullrequests?api-version=7.1
 ```
 
-**Query Parameters:**
+**Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `searchCriteria.status` | string | `active`, `abandoned`, `completed`, `all` |
-| `searchCriteria.creatorId` | string | Filter by creator |
-| `searchCriteria.reviewerId` | string | Filter by reviewer |
-| `searchCriteria.sourceRefName` | string | Source branch (e.g., `refs/heads/feature`) |
-| `searchCriteria.targetRefName` | string | Target branch (e.g., `refs/heads/main`) |
-| `$top` | number | Max results |
-| `$skip` | number | Skip results |
+| `status` | string | `active`, `abandoned`, `completed`, `all` (default: `active`) |
+| `top` | int | Max results |
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface GitPullRequest {
-  pullRequestId: number;
-  codeReviewId: number;
-  status: 'active' | 'abandoned' | 'completed';
-  createdBy: IdentityRef;
-  creationDate: string;
-  title: string;
-  description: string;
-  sourceRefName: string;
-  targetRefName: string;
-  mergeStatus: string;
-  isDraft: boolean;
-  mergeId: string;
-  lastMergeSourceCommit: GitCommitRef;
-  lastMergeTargetCommit: GitCommitRef;
-  lastMergeCommit: GitCommitRef;
-  reviewers: IdentityRefWithVote[];
-  url: string;
-  repository: GitRepository;
-}
+```python
+result = client.list_pull_requests("MyProject", "my-repo-id")
+# Result: {"success": True, "data": {"value": [...]}}
 
-async function listPullRequests(
-  project: string,
-  repositoryId: string,
-  status: 'active' | 'abandoned' | 'completed' | 'all' = 'active',
-  top?: number
-): Promise<GitPullRequest[]> {
-  const response = await httpClient.get(
-    `/${project}/_apis/git/repositories/${repositoryId}/pullrequests`,
-    {
-      params: {
-        'api-version': '7.1',
-        'searchCriteria.status': status,
-        '$top': top,
-      },
-    }
-  );
-  return response.data.value;
-}
+# Filter by status
+result = client.list_pull_requests("MyProject", "my-repo-id", status="completed", top=50)
 ```
 
 ---
@@ -798,22 +472,11 @@ async function listPullRequests(
 GET /{project}/_apis/git/repositories/{repositoryId}/pullrequests/{pullRequestId}?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function getPullRequest(
-  project: string,
-  repositoryId: string,
-  pullRequestId: number
-): Promise<GitPullRequest> {
-  const response = await httpClient.get(
-    `/${project}/_apis/git/repositories/${repositoryId}/pullrequests/${pullRequestId}`,
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-  return response.data;
-}
+```python
+result = client.get_pull_request("MyProject", "my-repo-id", 123)
+# Result: {"success": True, "data": {"pullRequestId": 123, "title": "...", ...}}
 ```
 
 ---
@@ -824,61 +487,21 @@ async function getPullRequest(
 POST /{project}/_apis/git/repositories/{repositoryId}/pullrequests?api-version=7.1
 ```
 
-**Request Body:**
+**Python:**
 
-```json
-{
-  "sourceRefName": "refs/heads/feature-branch",
-  "targetRefName": "refs/heads/main",
-  "title": "Add new feature",
-  "description": "This PR adds the new feature X",
-  "isDraft": false,
-  "reviewers": [
-    { "id": "reviewer-guid-here" }
-  ],
-  "workItemRefs": [
-    { "id": "12345" }
-  ]
-}
-```
-
-**TypeScript:**
-
-```typescript
-interface CreatePullRequestInput {
-  sourceRefName: string;
-  targetRefName: string;
-  title: string;
-  description?: string;
-  isDraft?: boolean;
-  reviewers?: Array<{ id: string }>;
-  workItemRefs?: Array<{ id: string }>;
-}
-
-async function createPullRequest(
-  project: string,
-  repositoryId: string,
-  input: CreatePullRequestInput
-): Promise<GitPullRequest> {
-  const response = await httpClient.post(
-    `/${project}/_apis/git/repositories/${repositoryId}/pullrequests`,
-    input,
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-  return response.data;
-}
-
-// Usage
-const pr = await createPullRequest('MyProject', 'my-repo-id', {
-  sourceRefName: 'refs/heads/feature/new-login',
-  targetRefName: 'refs/heads/main',
-  title: 'Add new login feature',
-  description: 'Implements SSO login with OAuth2',
-  reviewers: [{ id: 'reviewer-guid' }],
-  workItemRefs: [{ id: '12345' }],
-});
+```python
+result = client.create_pull_request(
+    project="MyProject",
+    repository_id="my-repo-id",
+    source_ref="feature/new-login",      # or "refs/heads/feature/new-login"
+    target_ref="main",                    # or "refs/heads/main"
+    title="Add new login feature",
+    description="Implements SSO login with OAuth2",
+    reviewers=["reviewer-guid-1", "reviewer-guid-2"],
+    work_item_ids=[12345, 12346],
+    is_draft=False
+)
+# Result: {"success": True, "data": {"pullRequestId": 124, ...}}
 ```
 
 ---
@@ -889,93 +512,39 @@ const pr = await createPullRequest('MyProject', 'my-repo-id', {
 PATCH /{project}/_apis/git/repositories/{repositoryId}/pullrequests/{pullRequestId}?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface UpdatePullRequestInput {
-  title?: string;
-  description?: string;
-  status?: 'active' | 'abandoned' | 'completed';
-  targetRefName?: string;
-  isDraft?: boolean;
-  autoCompleteSetBy?: { id: string };
-  completionOptions?: {
-    deleteSourceBranch?: boolean;
-    mergeStrategy?: 'noFastForward' | 'squash' | 'rebase' | 'rebaseMerge';
-    mergeCommitMessage?: string;
-    transitionWorkItems?: boolean;
-  };
-}
+```python
+# Update title/description
+result = client.update_pull_request("MyProject", "my-repo-id", 123, {
+    "title": "Updated PR title",
+    "description": "Updated description"
+})
 
-async function updatePullRequest(
-  project: string,
-  repositoryId: string,
-  pullRequestId: number,
-  updates: UpdatePullRequestInput
-): Promise<GitPullRequest> {
-  const response = await httpClient.patch(
-    `/${project}/_apis/git/repositories/${repositoryId}/pullrequests/${pullRequestId}`,
-    updates,
-    {
-      params: { 'api-version': '7.1' },
+# Complete a pull request
+result = client.update_pull_request("MyProject", "my-repo-id", 123, {
+    "status": "completed",
+    "completionOptions": {
+        "deleteSourceBranch": True,
+        "mergeStrategy": "squash",
+        "mergeCommitMessage": "Merged PR 123: Add new login feature"
     }
-  );
-  return response.data;
-}
-
-// Complete a pull request
-await updatePullRequest('MyProject', 'repo-id', 123, {
-  status: 'completed',
-  completionOptions: {
-    deleteSourceBranch: true,
-    mergeStrategy: 'squash',
-    mergeCommitMessage: 'Merged PR 123: Add new login feature',
-    transitionWorkItems: true,
-  },
-});
+})
 ```
 
 ---
 
-### Get Pull Request Threads (Comments)
+### Get Pull Request Threads
 
 ```
 GET /{project}/_apis/git/repositories/{repositoryId}/pullrequests/{pullRequestId}/threads?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface CommentThread {
-  id: number;
-  publishedDate: string;
-  lastUpdatedDate: string;
-  comments: Comment[];
-  status: 'unknown' | 'active' | 'fixed' | 'wontFix' | 'closed' | 'byDesign' | 'pending';
-  threadContext: {
-    filePath: string;
-    rightFileStart: { line: number; offset: number };
-    rightFileEnd: { line: number; offset: number };
-  };
-  pullRequestThreadContext: {
-    changeTrackingId: number;
-    iterationContext: { firstComparingIteration: number; secondComparingIteration: number };
-  };
-}
-
-async function getPullRequestThreads(
-  project: string,
-  repositoryId: string,
-  pullRequestId: number
-): Promise<CommentThread[]> {
-  const response = await httpClient.get(
-    `/${project}/_apis/git/repositories/${repositoryId}/pullrequests/${pullRequestId}/threads`,
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-  return response.data.value;
-}
+```python
+result = client.get_pull_request_threads("MyProject", "my-repo-id", 123)
+# Result: {"success": True, "data": {"value": [...]}}
 ```
 
 ---
@@ -986,67 +555,24 @@ async function getPullRequestThreads(
 POST /{project}/_apis/git/repositories/{repositoryId}/pullrequests/{pullRequestId}/threads?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface CreateThreadInput {
-  comments: Array<{
-    parentCommentId: number;
-    content: string;
-    commentType: 'text' | 'codeChange' | 'system';
-  }>;
-  status?: 'active' | 'fixed' | 'wontFix' | 'closed' | 'byDesign' | 'pending';
-  threadContext?: {
-    filePath: string;
-    rightFileStart?: { line: number; offset: number };
-    rightFileEnd?: { line: number; offset: number };
-  };
-}
+```python
+# General comment
+result = client.add_pull_request_thread(
+    "MyProject", "my-repo-id", 123,
+    content="Great work! LGTM.",
+    status="closed"
+)
 
-async function addPullRequestThread(
-  project: string,
-  repositoryId: string,
-  pullRequestId: number,
-  input: CreateThreadInput
-): Promise<CommentThread> {
-  const response = await httpClient.post(
-    `/${project}/_apis/git/repositories/${repositoryId}/pullrequests/${pullRequestId}/threads`,
-    input,
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-  return response.data;
-}
-
-// Add general comment
-await addPullRequestThread('MyProject', 'repo-id', 123, {
-  comments: [
-    {
-      parentCommentId: 0,
-      content: 'Great work! LGTM.',
-      commentType: 'text',
-    },
-  ],
-  status: 'closed',
-});
-
-// Add inline comment on specific file/line
-await addPullRequestThread('MyProject', 'repo-id', 123, {
-  comments: [
-    {
-      parentCommentId: 0,
-      content: 'Consider using const here instead of let.',
-      commentType: 'text',
-    },
-  ],
-  status: 'active',
-  threadContext: {
-    filePath: '/src/utils/helper.ts',
-    rightFileStart: { line: 42, offset: 1 },
-    rightFileEnd: { line: 42, offset: 20 },
-  },
-});
+# Inline comment on specific file/line
+result = client.add_pull_request_thread(
+    "MyProject", "my-repo-id", 123,
+    content="Consider using const here instead of let.",
+    status="active",
+    file_path="/src/utils/helper.ts",
+    line=42
+)
 ```
 
 ---
@@ -1057,55 +583,13 @@ await addPullRequestThread('MyProject', 'repo-id', 123, {
 GET /{project}/_apis/git/repositories/{repositoryId}/commits?api-version=7.1
 ```
 
-**Query Parameters:**
+**Python:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `searchCriteria.itemVersion.version` | string | Branch name |
-| `searchCriteria.fromDate` | string | From date |
-| `searchCriteria.toDate` | string | To date |
-| `searchCriteria.author` | string | Author email |
-| `searchCriteria.$top` | number | Max results |
-| `searchCriteria.$skip` | number | Skip results |
+```python
+result = client.list_commits("MyProject", "my-repo-id")
 
-**TypeScript:**
-
-```typescript
-interface GitCommit {
-  commitId: string;
-  author: GitUserDate;
-  committer: GitUserDate;
-  comment: string;
-  commentTruncated: boolean;
-  changeCounts: { Add: number; Edit: number; Delete: number };
-  url: string;
-  remoteUrl: string;
-}
-
-async function listCommits(
-  project: string,
-  repositoryId: string,
-  branch?: string,
-  top?: number
-): Promise<GitCommit[]> {
-  const params: Record<string, unknown> = {
-    'api-version': '7.1',
-  };
-
-  if (branch) {
-    params['searchCriteria.itemVersion.version'] = branch;
-    params['searchCriteria.itemVersion.versionType'] = 'branch';
-  }
-  if (top) {
-    params['searchCriteria.$top'] = top;
-  }
-
-  const response = await httpClient.get(
-    `/${project}/_apis/git/repositories/${repositoryId}/commits`,
-    { params }
-  );
-  return response.data.value;
-}
+# Filter by branch
+result = client.list_commits("MyProject", "my-repo-id", branch="main", top=50)
 ```
 
 ---
@@ -1116,87 +600,46 @@ async function listCommits(
 GET /{project}/_apis/git/repositories/{repositoryId}/commits/{commitId}?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function getCommit(
-  project: string,
-  repositoryId: string,
-  commitId: string,
-  changeCount?: number
-): Promise<GitCommit> {
-  const response = await httpClient.get(
-    `/${project}/_apis/git/repositories/${repositoryId}/commits/${commitId}`,
-    {
-      params: {
-        'api-version': '7.1',
-        'changeCount': changeCount,
-      },
-    }
-  );
-  return response.data;
-}
+```python
+result = client.get_commit("MyProject", "my-repo-id", "abc123def456")
+
+# Include change details
+result = client.get_commit("MyProject", "my-repo-id", "abc123def456", change_count=100)
 ```
 
 ---
 
-### List Branches (Refs)
+### List Branches
 
 ```
-GET /{project}/_apis/git/repositories/{repositoryId}/refs?api-version=7.1
+GET /{project}/_apis/git/repositories/{repositoryId}/refs?filter=heads/&api-version=7.1
 ```
 
-**Query Parameters:**
+**Python:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `filter` | string | Filter prefix (e.g., `heads/` for branches, `tags/` for tags) |
-| `filterContains` | string | Filter by name containing |
-| `$top` | number | Max results |
+```python
+result = client.list_branches("MyProject", "my-repo-id")
+# Result: {"success": True, "data": {"value": [{"name": "refs/heads/main", ...}]}}
 
-**TypeScript:**
+# Filter by name
+result = client.list_branches("MyProject", "my-repo-id", filter_contains="feature")
+```
 
-```typescript
-interface GitRef {
-  name: string;           // e.g., "refs/heads/main"
-  objectId: string;       // Commit SHA
-  creator: IdentityRef;
-  url: string;
-}
+---
 
-async function listBranches(
-  project: string,
-  repositoryId: string,
-  filterContains?: string
-): Promise<GitRef[]> {
-  const response = await httpClient.get(
-    `/${project}/_apis/git/repositories/${repositoryId}/refs`,
-    {
-      params: {
-        'api-version': '7.1',
-        'filter': 'heads/',
-        'filterContains': filterContains,
-      },
-    }
-  );
-  return response.data.value;
-}
+### List Tags
 
-async function listTags(
-  project: string,
-  repositoryId: string
-): Promise<GitRef[]> {
-  const response = await httpClient.get(
-    `/${project}/_apis/git/repositories/${repositoryId}/refs`,
-    {
-      params: {
-        'api-version': '7.1',
-        'filter': 'tags/',
-      },
-    }
-  );
-  return response.data.value;
-}
+```
+GET /{project}/_apis/git/repositories/{repositoryId}/refs?filter=tags/&api-version=7.1
+```
+
+**Python:**
+
+```python
+result = client.list_tags("MyProject", "my-repo-id")
+# Result: {"success": True, "data": {"value": [{"name": "refs/tags/v1.0.0", ...}]}}
 ```
 
 ---
@@ -1207,42 +650,20 @@ async function listTags(
 POST /{project}/_apis/git/repositories/{repositoryId}/refs?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface RefUpdate {
-  name: string;
-  oldObjectId: string;
-  newObjectId: string;
-}
+```python
+# First get the source commit (e.g., from main branch)
+branches = client.list_branches("MyProject", "my-repo-id", filter_contains="main")
+main_commit = branches["data"]["value"][0]["objectId"]
 
-async function createBranch(
-  project: string,
-  repositoryId: string,
-  branchName: string,
-  sourceCommitId: string
-): Promise<GitRef> {
-  const refUpdates: RefUpdate[] = [
-    {
-      name: `refs/heads/${branchName}`,
-      oldObjectId: '0000000000000000000000000000000000000000',
-      newObjectId: sourceCommitId,
-    },
-  ];
-
-  const response = await httpClient.post(
-    `/${project}/_apis/git/repositories/${repositoryId}/refs`,
-    refUpdates,
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-  return response.data.value[0];
-}
-
-// Usage - Create branch from main's HEAD
-const mainBranch = await getBranch('MyProject', 'repo-id', 'main');
-await createBranch('MyProject', 'repo-id', 'feature/new-feature', mainBranch.objectId);
+# Create new branch
+result = client.create_branch(
+    "MyProject",
+    "my-repo-id",
+    "feature/new-feature",
+    main_commit
+)
 ```
 
 ---
@@ -1253,31 +674,20 @@ await createBranch('MyProject', 'repo-id', 'feature/new-feature', mainBranch.obj
 POST /{project}/_apis/git/repositories/{repositoryId}/refs?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function deleteBranch(
-  project: string,
-  repositoryId: string,
-  branchName: string,
-  currentCommitId: string
-): Promise<void> {
-  const refUpdates: RefUpdate[] = [
-    {
-      name: `refs/heads/${branchName}`,
-      oldObjectId: currentCommitId,
-      newObjectId: '0000000000000000000000000000000000000000',
-    },
-  ];
+```python
+# Get current commit ID of the branch
+branches = client.list_branches("MyProject", "my-repo-id", filter_contains="feature/old")
+branch_commit = branches["data"]["value"][0]["objectId"]
 
-  await httpClient.post(
-    `/${project}/_apis/git/repositories/${repositoryId}/refs`,
-    refUpdates,
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-}
+# Delete the branch
+result = client.delete_branch(
+    "MyProject",
+    "my-repo-id",
+    "feature/old",
+    branch_commit
+)
 ```
 
 ---
@@ -1290,33 +700,13 @@ async function deleteBranch(
 GET /{project}/_apis/pipelines?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface Pipeline {
-  id: number;
-  revision: number;
-  name: string;
-  folder: string;
-  url: string;
-  _links: Record<string, { href: string }>;
-}
+```python
+result = client.list_pipelines("MyProject")
+# Result: {"success": True, "data": {"value": [{"id": 42, "name": "CI Pipeline", ...}]}}
 
-async function listPipelines(
-  project: string,
-  top?: number
-): Promise<Pipeline[]> {
-  const response = await httpClient.get(
-    `/${project}/_apis/pipelines`,
-    {
-      params: {
-        'api-version': '7.1',
-        '$top': top,
-      },
-    }
-  );
-  return response.data.value;
-}
+result = client.list_pipelines("MyProject", top=20)
 ```
 
 ---
@@ -1327,21 +717,10 @@ async function listPipelines(
 GET /{project}/_apis/pipelines/{pipelineId}?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function getPipeline(
-  project: string,
-  pipelineId: number
-): Promise<Pipeline> {
-  const response = await httpClient.get(
-    `/${project}/_apis/pipelines/${pipelineId}`,
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-  return response.data;
-}
+```python
+result = client.get_pipeline("MyProject", 42)
 ```
 
 ---
@@ -1352,85 +731,21 @@ async function getPipeline(
 POST /{project}/_apis/pipelines/{pipelineId}/runs?api-version=7.1
 ```
 
-**Request Body:**
+**Python:**
 
-```json
-{
-  "resources": {
-    "repositories": {
-      "self": {
-        "refName": "refs/heads/main"
-      }
-    }
-  },
-  "templateParameters": {
-    "environment": "staging",
-    "deployRegion": "eastus"
-  },
-  "variables": {
-    "customVar": {
-      "value": "customValue",
-      "isSecret": false
-    }
-  }
-}
-```
+```python
+# Run on default branch
+result = client.run_pipeline("MyProject", 42)
 
-**TypeScript:**
-
-```typescript
-interface PipelineRun {
-  id: number;
-  name: string;
-  state: 'unknown' | 'inProgress' | 'canceling' | 'completed';
-  result: 'unknown' | 'succeeded' | 'failed' | 'canceled';
-  createdDate: string;
-  finishedDate: string;
-  url: string;
-  pipeline: Pipeline;
-  resources: Record<string, unknown>;
-  variables: Record<string, { value: string; isSecret?: boolean }>;
-}
-
-interface RunPipelineInput {
-  resources?: {
-    repositories?: {
-      self: {
-        refName: string;  // e.g., "refs/heads/main"
-      };
-    };
-  };
-  templateParameters?: Record<string, string>;
-  variables?: Record<string, { value: string; isSecret?: boolean }>;
-  stagesToSkip?: string[];
-}
-
-async function runPipeline(
-  project: string,
-  pipelineId: number,
-  input?: RunPipelineInput
-): Promise<PipelineRun> {
-  const response = await httpClient.post(
-    `/${project}/_apis/pipelines/${pipelineId}/runs`,
-    input || {},
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-  return response.data;
-}
-
-// Usage - Run pipeline on specific branch
-const run = await runPipeline('MyProject', 42, {
-  resources: {
-    repositories: {
-      self: { refName: 'refs/heads/feature/new-feature' },
-    },
-  },
-  templateParameters: {
-    environment: 'dev',
-  },
-});
+# Run on specific branch with parameters
+result = client.run_pipeline(
+    "MyProject",
+    42,
+    ref_name="refs/heads/feature/new-feature",
+    template_parameters={"environment": "staging"},
+    variables={"customVar": "customValue"}
+)
+# Result: {"success": True, "data": {"id": 1234, "state": "inProgress", ...}}
 ```
 
 ---
@@ -1441,45 +756,23 @@ const run = await runPipeline('MyProject', 42, {
 GET /{project}/_apis/pipelines/{pipelineId}/runs/{runId}?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function getPipelineRun(
-  project: string,
-  pipelineId: number,
-  runId: number
-): Promise<PipelineRun> {
-  const response = await httpClient.get(
-    `/${project}/_apis/pipelines/${pipelineId}/runs/${runId}`,
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-  return response.data;
-}
+```python
+result = client.get_pipeline_run("MyProject", 42, 1234)
+# Result: {"success": True, "data": {"state": "completed", "result": "succeeded", ...}}
 
-// Poll for completion
-async function waitForPipelineCompletion(
-  project: string,
-  pipelineId: number,
-  runId: number,
-  pollIntervalMs: number = 10000,
-  timeoutMs: number = 600000
-): Promise<PipelineRun> {
-  const startTime = Date.now();
+# Poll for completion
+import time
 
-  while (Date.now() - startTime < timeoutMs) {
-    const run = await getPipelineRun(project, pipelineId, runId);
-
-    if (run.state === 'completed') {
-      return run;
-    }
-
-    await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
-  }
-
-  throw new Error(`Pipeline run ${runId} did not complete within ${timeoutMs}ms`);
-}
+def wait_for_pipeline(client, project, pipeline_id, run_id, timeout=600):
+    start = time.time()
+    while time.time() - start < timeout:
+        result = client.get_pipeline_run(project, pipeline_id, run_id)
+        if result["success"] and result["data"]["state"] == "completed":
+            return result["data"]
+        time.sleep(10)
+    raise TimeoutError("Pipeline did not complete in time")
 ```
 
 ---
@@ -1490,25 +783,11 @@ async function waitForPipelineCompletion(
 GET /{project}/_apis/pipelines/{pipelineId}/runs?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function listPipelineRuns(
-  project: string,
-  pipelineId: number,
-  top?: number
-): Promise<PipelineRun[]> {
-  const response = await httpClient.get(
-    `/${project}/_apis/pipelines/${pipelineId}/runs`,
-    {
-      params: {
-        'api-version': '7.1',
-        '$top': top,
-      },
-    }
-  );
-  return response.data.value;
-}
+```python
+result = client.list_pipeline_runs("MyProject", 42)
+result = client.list_pipeline_runs("MyProject", 42, top=10)
 ```
 
 ---
@@ -1519,78 +798,31 @@ async function listPipelineRuns(
 GET /{project}/_apis/pipelines/{pipelineId}/runs/{runId}/logs?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface PipelineLog {
-  id: number;
-  createdOn: string;
-  lastChangedOn: string;
-  lineCount: number;
-  url: string;
-}
+```python
+result = client.get_pipeline_run_logs("MyProject", 42, 1234)
+# Result: {"success": True, "data": {"logs": [{"id": 1, "lineCount": 50, ...}]}}
 
-interface PipelineLogs {
-  logs: PipelineLog[];
-  signedContent: { url: string };
-}
-
-async function getPipelineRunLogs(
-  project: string,
-  pipelineId: number,
-  runId: number
-): Promise<PipelineLogs> {
-  const response = await httpClient.get(
-    `/${project}/_apis/pipelines/${pipelineId}/runs/${runId}/logs`,
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-  return response.data;
-}
-
-// Get specific log content
-async function getPipelineLogContent(
-  project: string,
-  pipelineId: number,
-  runId: number,
-  logId: number
-): Promise<string> {
-  const response = await httpClient.get(
-    `/${project}/_apis/pipelines/${pipelineId}/runs/${runId}/logs/${logId}`,
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-  return response.data;
-}
+# Get specific log content
+if result["success"]:
+    for log in result["data"]["logs"]:
+        content = client.get_pipeline_log_content("MyProject", 42, 1234, log["id"])
+        print(content["data"])
 ```
 
 ---
 
 ### Cancel Pipeline Run
 
-Pipeline runs can be canceled using the Build API:
-
 ```
 PATCH /{project}/_apis/build/builds/{buildId}?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function cancelPipelineRun(
-  project: string,
-  buildId: number
-): Promise<void> {
-  await httpClient.patch(
-    `/${project}/_apis/build/builds/${buildId}`,
-    { status: 'cancelling' },
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-}
+```python
+result = client.cancel_pipeline_run("MyProject", 1234)
 ```
 
 ---
@@ -1601,65 +833,29 @@ async function cancelPipelineRun(
 GET /{project}/_apis/build/builds?api-version=7.1
 ```
 
-**Query Parameters:**
+**Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `definitions` | string | Comma-separated definition IDs |
-| `statusFilter` | string | `all`, `cancelling`, `completed`, `inProgress`, `none`, `notStarted`, `postponed` |
-| `resultFilter` | string | `canceled`, `failed`, `none`, `partiallySucceeded`, `succeeded` |
-| `requestedFor` | string | User ID or email |
-| `branchName` | string | Branch name (e.g., `refs/heads/main`) |
-| `$top` | number | Max results |
+| `definitions` | List[int] | Filter by definition IDs |
+| `status_filter` | string | `inProgress`, `completed`, `cancelling`, etc. |
+| `result_filter` | string | `succeeded`, `failed`, `canceled` |
+| `branch_name` | string | Filter by branch (e.g., `refs/heads/main`) |
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface Build {
-  id: number;
-  buildNumber: string;
-  status: string;
-  result: string;
-  queueTime: string;
-  startTime: string;
-  finishTime: string;
-  definition: { id: number; name: string };
-  requestedBy: IdentityRef;
-  requestedFor: IdentityRef;
-  sourceBranch: string;
-  sourceVersion: string;
-  url: string;
-  _links: Record<string, { href: string }>;
-}
+```python
+result = client.list_builds("MyProject")
 
-async function listBuilds(
-  project: string,
-  options?: {
-    definitions?: number[];
-    statusFilter?: string;
-    resultFilter?: string;
-    branchName?: string;
-    top?: number;
-  }
-): Promise<Build[]> {
-  const params: Record<string, unknown> = {
-    'api-version': '7.1',
-  };
-
-  if (options?.definitions) {
-    params['definitions'] = options.definitions.join(',');
-  }
-  if (options?.statusFilter) params['statusFilter'] = options.statusFilter;
-  if (options?.resultFilter) params['resultFilter'] = options.resultFilter;
-  if (options?.branchName) params['branchName'] = options.branchName;
-  if (options?.top) params['$top'] = options.top;
-
-  const response = await httpClient.get(
-    `/${project}/_apis/build/builds`,
-    { params }
-  );
-  return response.data.value;
-}
+# With filters
+result = client.list_builds(
+    "MyProject",
+    definitions=[42, 43],
+    status_filter="completed",
+    result_filter="failed",
+    branch_name="refs/heads/main",
+    top=50
+)
 ```
 
 ---
@@ -1670,52 +866,26 @@ async function listBuilds(
 GET /{project}/_apis/build/builds/{buildId}/artifacts?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface BuildArtifact {
-  id: number;
-  name: string;
-  resource: {
-    type: string;
-    data: string;
-    downloadUrl: string;
-    url: string;
-  };
-}
+```python
+result = client.get_build_artifacts("MyProject", 1234)
+# Result: {"success": True, "data": {"value": [{"name": "drop", ...}]}}
+```
 
-async function getBuildArtifacts(
-  project: string,
-  buildId: number
-): Promise<BuildArtifact[]> {
-  const response = await httpClient.get(
-    `/${project}/_apis/build/builds/${buildId}/artifacts`,
-    {
-      params: { 'api-version': '7.1' },
-    }
-  );
-  return response.data.value;
-}
+---
 
-// Download artifact
-async function downloadArtifact(
-  project: string,
-  buildId: number,
-  artifactName: string
-): Promise<Buffer> {
-  const response = await httpClient.get(
-    `/${project}/_apis/build/builds/${buildId}/artifacts`,
-    {
-      params: {
-        'api-version': '7.1',
-        'artifactName': artifactName,
-        '$format': 'zip',
-      },
-      responseType: 'arraybuffer',
-    }
-  );
-  return Buffer.from(response.data);
-}
+### Download Artifact
+
+**Python:**
+
+```python
+result = client.download_artifact("MyProject", 1234, "drop")
+# Result: {"success": True, "data": {"content": b"..."}}
+
+if result["success"]:
+    with open("artifact.zip", "wb") as f:
+        f.write(result["data"]["content"])
 ```
 
 ---
@@ -1728,36 +898,14 @@ async function downloadArtifact(
 GET /_apis/projects?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface TeamProject {
-  id: string;
-  name: string;
-  description: string;
-  url: string;
-  state: 'deleting' | 'new' | 'wellFormed' | 'createPending' | 'all' | 'unchanged' | 'deleted';
-  revision: number;
-  visibility: 'private' | 'public';
-  lastUpdateTime: string;
-}
+```python
+result = client.list_projects()
+# Result: {"success": True, "data": {"value": [{"id": "...", "name": "MyProject", ...}]}}
 
-async function listProjects(
-  top?: number,
-  skip?: number
-): Promise<TeamProject[]> {
-  const response = await httpClient.get(
-    '/_apis/projects',
-    {
-      params: {
-        'api-version': '7.1',
-        '$top': top,
-        '$skip': skip,
-      },
-    }
-  );
-  return response.data.value;
-}
+# With pagination
+result = client.list_projects(top=50, skip=0)
 ```
 
 ---
@@ -1768,24 +916,15 @@ async function listProjects(
 GET /_apis/projects/{projectId}?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-async function getProject(
-  projectIdOrName: string,
-  includeCapabilities?: boolean
-): Promise<TeamProject> {
-  const response = await httpClient.get(
-    `/_apis/projects/${projectIdOrName}`,
-    {
-      params: {
-        'api-version': '7.1',
-        'includeCapabilities': includeCapabilities,
-      },
-    }
-  );
-  return response.data;
-}
+```python
+result = client.get_project("MyProject")
+# or by ID
+result = client.get_project("abc123-def456")
+
+# Include capabilities
+result = client.get_project("MyProject", include_capabilities=True)
 ```
 
 ---
@@ -1793,37 +932,14 @@ async function getProject(
 ### List Teams
 
 ```
-GET /_apis/projects/{projectId}/teams?api-version=7.1
+GET /{project}/_apis/teams?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface WebApiTeam {
-  id: string;
-  name: string;
-  url: string;
-  description: string;
-  identityUrl: string;
-  projectName: string;
-  projectId: string;
-}
-
-async function listTeams(
-  project: string,
-  top?: number
-): Promise<WebApiTeam[]> {
-  const response = await httpClient.get(
-    `/_apis/projects/${project}/teams`,
-    {
-      params: {
-        'api-version': '7.1',
-        '$top': top,
-      },
-    }
-  );
-  return response.data.value;
-}
+```python
+result = client.list_teams("MyProject")
+# Result: {"success": True, "data": {"value": [{"id": "...", "name": "My Team", ...}]}}
 ```
 
 ---
@@ -1831,33 +947,14 @@ async function listTeams(
 ### Get Team Members
 
 ```
-GET /_apis/projects/{projectId}/teams/{teamId}/members?api-version=7.1
+GET /{project}/_apis/teams/{teamId}/members?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface TeamMember {
-  identity: IdentityRef;
-  isTeamAdmin: boolean;
-}
-
-async function getTeamMembers(
-  project: string,
-  teamId: string,
-  top?: number
-): Promise<TeamMember[]> {
-  const response = await httpClient.get(
-    `/_apis/projects/${project}/teams/${teamId}/members`,
-    {
-      params: {
-        'api-version': '7.1',
-        '$top': top,
-      },
-    }
-  );
-  return response.data.value;
-}
+```python
+result = client.get_team_members("MyProject", "team-id")
+# Result: {"success": True, "data": {"value": [{"identity": {...}, ...}]}}
 ```
 
 ---
@@ -1868,57 +965,13 @@ async function getTeamMembers(
 GET /{project}/{team}/_apis/work/teamsettings/iterations?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface TeamSettingsIteration {
-  id: string;
-  name: string;
-  path: string;
-  attributes: {
-    startDate: string;
-    finishDate: string;
-    timeFrame: 'past' | 'current' | 'future';
-  };
-  url: string;
-}
+```python
+result = client.list_iterations("MyProject", "My Team")
 
-async function listIterations(
-  project: string,
-  team: string,
-  timeframe?: 'past' | 'current' | 'future'
-): Promise<TeamSettingsIteration[]> {
-  const response = await httpClient.get(
-    `/${project}/${team}/_apis/work/teamsettings/iterations`,
-    {
-      params: {
-        'api-version': '7.1',
-        '$timeframe': timeframe,
-      },
-    }
-  );
-  return response.data.value;
-}
-```
-
----
-
-### Get Current Iteration
-
-```
-GET /{project}/{team}/_apis/work/teamsettings/iterations?$timeframe=current&api-version=7.1
-```
-
-**TypeScript:**
-
-```typescript
-async function getCurrentIteration(
-  project: string,
-  team: string
-): Promise<TeamSettingsIteration | null> {
-  const iterations = await listIterations(project, team, 'current');
-  return iterations[0] || null;
-}
+# Get current iteration only
+result = client.list_iterations("MyProject", "My Team", timeframe="current")
 ```
 
 ---
@@ -1926,38 +979,17 @@ async function getCurrentIteration(
 ### List Areas
 
 ```
-GET /{project}/_apis/wit/classificationnodes/Areas?api-version=7.1&$depth=10
+GET /{project}/_apis/wit/classificationnodes/Areas?api-version=7.1
 ```
 
-**TypeScript:**
+**Python:**
 
-```typescript
-interface WorkItemClassificationNode {
-  id: number;
-  identifier: string;
-  name: string;
-  structureType: 'area' | 'iteration';
-  hasChildren: boolean;
-  children?: WorkItemClassificationNode[];
-  path: string;
-  url: string;
-}
+```python
+result = client.list_areas("MyProject")
+# Result: {"success": True, "data": {"id": 1, "name": "MyProject", "children": [...]}}
 
-async function listAreas(
-  project: string,
-  depth: number = 10
-): Promise<WorkItemClassificationNode> {
-  const response = await httpClient.get(
-    `/${project}/_apis/wit/classificationnodes/Areas`,
-    {
-      params: {
-        'api-version': '7.1',
-        '$depth': depth,
-      },
-    }
-  );
-  return response.data;
-}
+# Control depth
+result = client.list_areas("MyProject", depth=5)
 ```
 
 ---
@@ -1971,7 +1003,6 @@ SELECT [field1], [field2], ...
 FROM WorkItems | WorkItemLinks
 WHERE [conditions]
 ORDER BY [field] [ASC|DESC]
-ASOF 'datetime'
 ```
 
 ### Common Fields
@@ -1985,35 +1016,22 @@ ASOF 'datetime'
 | `System.AssignedTo` | Assigned user |
 | `System.CreatedDate` | Creation date |
 | `System.ChangedDate` | Last modified date |
-| `System.CreatedBy` | Creator |
-| `System.ChangedBy` | Last modifier |
 | `System.TeamProject` | Project name |
 | `System.AreaPath` | Area path |
 | `System.IterationPath` | Iteration path |
 | `System.Tags` | Tags (semicolon-separated) |
-| `System.Description` | Description (HTML) |
 | `Microsoft.VSTS.Common.Priority` | Priority (1-4) |
-| `Microsoft.VSTS.Common.Severity` | Severity |
 | `Microsoft.VSTS.Scheduling.StoryPoints` | Story points |
-| `Microsoft.VSTS.Scheduling.OriginalEstimate` | Original estimate |
-| `Microsoft.VSTS.Scheduling.RemainingWork` | Remaining work |
-| `Microsoft.VSTS.Scheduling.CompletedWork` | Completed work |
 
 ### Operators
 
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `=` | Equals | `[System.State] = 'Active'` |
-| `<>` | Not equals | `[System.State] <> 'Closed'` |
-| `>`, `<`, `>=`, `<=` | Comparison | `[Microsoft.VSTS.Common.Priority] <= 2` |
-| `IN` | In list | `[System.State] IN ('New', 'Active')` |
-| `NOT IN` | Not in list | `[System.State] NOT IN ('Closed', 'Removed')` |
-| `CONTAINS` | Contains text | `[System.Title] CONTAINS 'login'` |
-| `NOT CONTAINS` | Not contains | `[System.Title] NOT CONTAINS 'test'` |
-| `UNDER` | Under path | `[System.AreaPath] UNDER 'Project\Team'` |
-| `NOT UNDER` | Not under path | `[System.IterationPath] NOT UNDER 'Project\Backlog'` |
-| `WAS EVER` | Historical | `[System.AssignedTo] WAS EVER 'user@company.com'` |
-| `CONTAINS WORDS` | Full-text search | `[System.Description] CONTAINS WORDS 'authentication oauth'` |
+| Operator | Example |
+|----------|---------|
+| `=`, `<>` | `[System.State] = 'Active'` |
+| `>`, `<`, `>=`, `<=` | `[Microsoft.VSTS.Common.Priority] <= 2` |
+| `IN` | `[System.State] IN ('New', 'Active')` |
+| `CONTAINS` | `[System.Title] CONTAINS 'login'` |
+| `UNDER` | `[System.AreaPath] UNDER 'Project\Team'` |
 
 ### Macros
 
@@ -2024,57 +1042,41 @@ ASOF 'datetime'
 | `@today` | Today's date |
 | `@today - 7` | 7 days ago |
 | `@currentIteration` | Current iteration |
-| `@currentIteration + 1` | Next iteration |
 
 ### Query Examples
 
-**Active bugs assigned to me:**
-```sql
-SELECT [System.Id], [System.Title], [System.State], [Microsoft.VSTS.Common.Priority]
+```python
+# Active bugs assigned to me
+wiql = """
+SELECT [System.Id], [System.Title], [System.State]
 FROM WorkItems
 WHERE [System.TeamProject] = @project
   AND [System.WorkItemType] = 'Bug'
   AND [System.State] = 'Active'
   AND [System.AssignedTo] = @me
 ORDER BY [Microsoft.VSTS.Common.Priority] ASC
-```
+"""
+result = client.query_work_items("MyProject", wiql)
 
-**Work items modified in last 7 days:**
-```sql
-SELECT [System.Id], [System.Title], [System.ChangedDate], [System.ChangedBy]
+# Work items modified in last 7 days
+wiql = """
+SELECT [System.Id], [System.Title], [System.ChangedDate]
 FROM WorkItems
 WHERE [System.TeamProject] = @project
   AND [System.ChangedDate] >= @today - 7
 ORDER BY [System.ChangedDate] DESC
-```
+"""
+result = client.query_work_items("MyProject", wiql)
 
-**Current sprint work items:**
-```sql
-SELECT [System.Id], [System.Title], [System.State], [System.AssignedTo]
+# Current sprint items
+wiql = """
+SELECT [System.Id], [System.Title], [System.State]
 FROM WorkItems
 WHERE [System.TeamProject] = @project
   AND [System.IterationPath] = @currentIteration
-  AND [System.WorkItemType] IN ('User Story', 'Bug', 'Task')
 ORDER BY [Microsoft.VSTS.Common.Priority] ASC
-```
-
-**Parent-child relationships:**
-```sql
-SELECT [System.Id], [System.Title], [System.WorkItemType]
-FROM WorkItemLinks
-WHERE ([Source].[System.TeamProject] = @project
-  AND [Source].[System.WorkItemType] = 'User Story')
-  AND ([System.Links.LinkType] = 'System.LinkTypes.Hierarchy-Forward')
-  AND ([Target].[System.WorkItemType] = 'Task')
-MODE (Recursive)
-```
-
-**Work items with specific tag:**
-```sql
-SELECT [System.Id], [System.Title], [System.Tags]
-FROM WorkItems
-WHERE [System.TeamProject] = @project
-  AND [System.Tags] CONTAINS 'critical'
+"""
+result = client.query_work_items("MyProject", wiql)
 ```
 
 ---
@@ -2085,539 +1087,215 @@ WHERE [System.TeamProject] = @project
 
 | Code | Meaning | Action |
 |------|---------|--------|
-| `200` | Success | Process response |
+| `200` | Success | Process `data` field |
 | `201` | Created | Resource created successfully |
-| `204` | No Content | Success (no response body) |
+| `204` | No Content | Success (data is `None`) |
 | `400` | Bad Request | Check request parameters |
 | `401` | Unauthorized | Check PAT validity and scopes |
 | `403` | Forbidden | Check permissions |
 | `404` | Not Found | Resource doesn't exist |
-| `409` | Conflict | Resource conflict (e.g., version mismatch) |
-| `429` | Too Many Requests | Rate limited - retry with backoff |
-| `500` | Server Error | Azure DevOps issue - retry |
-| `503` | Service Unavailable | Azure DevOps unavailable - retry |
+| `409` | Conflict | Version mismatch |
+| `429` | Too Many Requests | Rate limited - retry later |
 
 ### Error Response Format
 
-```json
+```python
 {
-  "$id": "1",
-  "innerException": null,
-  "message": "TF401019: The specified work item does not exist.",
-  "typeName": "Microsoft.TeamFoundation.WorkItemTracking.Server.WorkItemNotFoundException",
-  "typeKey": "WorkItemNotFoundException",
-  "errorCode": 0,
-  "eventId": 3000
+    "success": False,
+    "error": {
+        "status_code": 404,
+        "message": "TF401019: The specified work item does not exist."
+    }
 }
 ```
 
-### TypeScript Error Handler
+### Python Error Handling
 
-```typescript
-interface AzureDevOpsError {
-  $id: string;
-  message: string;
-  typeName: string;
-  typeKey: string;
-  errorCode: number;
-  eventId: number;
-}
+```python
+from ado_client import AzureDevOpsClient
 
-function handleApiError(error: AxiosError): never {
-  if (error.response) {
-    const status = error.response.status;
-    const data = error.response.data as AzureDevOpsError;
+client = AzureDevOpsClient()
 
-    switch (status) {
-      case 401:
-        throw new Error(
-          'Authentication failed. Check ADO_PAT environment variable and ensure it has not expired.'
-        );
-      case 403:
-        throw new Error(
-          `Permission denied: ${data.message}. Check PAT scopes and project permissions.`
-        );
-      case 404:
-        throw new Error(`Resource not found: ${data.message}`);
-      case 409:
-        throw new Error(`Conflict: ${data.message}. Resource may have been modified.`);
-      case 429:
-        throw new Error('Rate limit exceeded. Retry after backoff period.');
-      default:
-        throw new Error(`Azure DevOps API error (${status}): ${data.message}`);
-    }
-  }
+def handle_result(result, operation_name):
+    """Handle API result with proper error checking."""
+    if result["success"]:
+        return result["data"]
 
-  if (error.code === 'ETIMEDOUT') {
-    throw new Error('Request timed out. Check network connection and try again.');
-  }
+    error = result["error"]
+    status = error.get("status_code")
+    message = error.get("message", "Unknown error")
 
-  throw new Error(`Network error: ${error.message}`);
-}
+    if status == 401:
+        raise PermissionError(f"Authentication failed: {message}")
+    elif status == 403:
+        raise PermissionError(f"Permission denied: {message}")
+    elif status == 404:
+        raise ValueError(f"Not found: {message}")
+    elif status == 429:
+        raise RuntimeError(f"Rate limited: {message}")
+    else:
+        raise RuntimeError(f"{operation_name} failed ({status}): {message}")
+
+# Usage
+result = client.get_work_item("MyProject", 12345)
+work_item = handle_result(result, "Get work item")
 ```
 
 ---
 
-## Rate Limiting
+## Python Client
 
-### Limits
+The `ado_client.py` module provides a simple, consistent interface to Azure DevOps REST API v7.1.
 
-Azure DevOps has rate limits that vary by operation:
-- **Read operations**: Generally more permissive
-- **Write operations**: More restrictive
-- **Search/Query**: May have additional limits
+### Features
 
-### Retry Strategy
+- **No exceptions** - All methods return `{"success": True/False, "data/error": ...}`
+- **Auto-authentication** - Uses environment variables or direct parameters
+- **Consistent response format** - Easy to handle success and error cases
+- **43 methods** covering Work Items, Git, Pipelines, and Projects APIs
 
-```typescript
-interface RetryConfig {
-  maxRetries: number;
-  baseDelay: number;
-  maxDelay: number;
-}
+### Method Summary
 
-const defaultRetryConfig: RetryConfig = {
-  maxRetries: 3,
-  baseDelay: 1000,
-  maxDelay: 30000,
-};
+#### Work Items (12 methods)
 
-async function executeWithRetry<T>(
-  operation: () => Promise<T>,
-  config: RetryConfig = defaultRetryConfig
-): Promise<T> {
-  let lastError: Error | undefined;
+| Method | Description |
+|--------|-------------|
+| `get_work_item(project, work_item_id, expand)` | Get single work item |
+| `get_work_items(project, ids, fields)` | Get multiple work items |
+| `create_work_item(project, work_item_type, fields)` | Create work item |
+| `update_work_item(project, work_item_id, updates)` | Update work item |
+| `delete_work_item(project, work_item_id, permanent)` | Delete work item |
+| `query_work_items(project, wiql, top)` | Execute WIQL query |
+| `get_work_item_comments(project, work_item_id, top)` | Get comments |
+| `add_work_item_comment(project, work_item_id, text)` | Add comment |
+| `link_work_items(project, source_id, target_id, link_type, comment)` | Link work items |
+| `get_work_item_revisions(project, work_item_id, top, skip)` | Get revisions |
+| `upload_attachment(project, file_name, content)` | Upload attachment |
+| `attach_to_work_item(project, work_item_id, attachment_url, comment)` | Attach to work item |
 
-  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error as Error;
-      const axiosError = error as AxiosError;
+#### Git (14 methods)
 
-      // Don't retry client errors (except 429)
-      if (axiosError.response) {
-        const status = axiosError.response.status;
-        if (status >= 400 && status < 500 && status !== 429) {
-          throw error;
-        }
+| Method | Description |
+|--------|-------------|
+| `list_repositories(project)` | List repositories |
+| `get_repository(project, repository_id_or_name)` | Get repository |
+| `list_pull_requests(project, repository_id, status, top)` | List PRs |
+| `get_pull_request(project, repository_id, pull_request_id)` | Get PR |
+| `create_pull_request(project, repository_id, source_ref, target_ref, title, ...)` | Create PR |
+| `update_pull_request(project, repository_id, pull_request_id, updates)` | Update PR |
+| `get_pull_request_threads(project, repository_id, pull_request_id)` | Get PR comments |
+| `add_pull_request_thread(project, repository_id, pull_request_id, content, ...)` | Add PR comment |
+| `list_commits(project, repository_id, branch, top)` | List commits |
+| `get_commit(project, repository_id, commit_id, change_count)` | Get commit |
+| `list_branches(project, repository_id, filter_contains)` | List branches |
+| `list_tags(project, repository_id)` | List tags |
+| `create_branch(project, repository_id, branch_name, source_commit_id)` | Create branch |
+| `delete_branch(project, repository_id, branch_name, current_commit_id)` | Delete branch |
 
-        // Handle 429 with Retry-After header
-        if (status === 429) {
-          const retryAfter = axiosError.response.headers['retry-after'];
-          if (retryAfter) {
-            const delayMs = parseInt(retryAfter, 10) * 1000;
-            await sleep(Math.min(delayMs, config.maxDelay));
-            continue;
-          }
-        }
-      }
+#### Pipelines (11 methods)
 
-      // Don't retry on last attempt
-      if (attempt === config.maxRetries) {
-        break;
-      }
+| Method | Description |
+|--------|-------------|
+| `list_pipelines(project, top)` | List pipelines |
+| `get_pipeline(project, pipeline_id)` | Get pipeline |
+| `run_pipeline(project, pipeline_id, ref_name, template_parameters, variables)` | Run pipeline |
+| `get_pipeline_run(project, pipeline_id, run_id)` | Get run status |
+| `list_pipeline_runs(project, pipeline_id, top)` | List runs |
+| `get_pipeline_run_logs(project, pipeline_id, run_id)` | Get log metadata |
+| `get_pipeline_log_content(project, pipeline_id, run_id, log_id)` | Get log content |
+| `cancel_pipeline_run(project, build_id)` | Cancel run |
+| `list_builds(project, definitions, status_filter, result_filter, branch_name, top)` | List builds |
+| `get_build_artifacts(project, build_id)` | Get artifacts |
+| `download_artifact(project, build_id, artifact_name)` | Download artifact |
 
-      // Exponential backoff with jitter
-      const delay = Math.min(
-        config.baseDelay * Math.pow(2, attempt) + Math.random() * 1000,
-        config.maxDelay
-      );
-      await sleep(delay);
-    }
-  }
+#### Projects (6 methods)
 
-  throw new Error(`Max retries exceeded. Last error: ${lastError?.message}`);
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-```
-
-### Batch Operations
-
-For bulk operations, use batch endpoints when available and implement throttling:
-
-```typescript
-async function batchProcess<T, R>(
-  items: T[],
-  processor: (item: T) => Promise<R>,
-  options: {
-    batchSize?: number;
-    delayBetweenBatches?: number;
-  } = {}
-): Promise<R[]> {
-  const { batchSize = 10, delayBetweenBatches = 1000 } = options;
-  const results: R[] = [];
-
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    const batchResults = await Promise.all(batch.map(processor));
-    results.push(...batchResults);
-
-    // Delay between batches to avoid rate limiting
-    if (i + batchSize < items.length) {
-      await sleep(delayBetweenBatches);
-    }
-  }
-
-  return results;
-}
-```
-
----
-
-## TypeScript Client Pattern
-
-### Complete Client Implementation
-
-```typescript
-import axios, { AxiosInstance, AxiosError } from 'axios';
-
-export interface AzureDevOpsClientConfig {
-  organization?: string;
-  pat?: string;
-  apiVersion?: string;
-  timeout?: number;
-  retryConfig?: {
-    maxRetries: number;
-    baseDelay: number;
-    maxDelay: number;
-  };
-}
-
-export class AzureDevOpsClient {
-  private readonly httpClient: AxiosInstance;
-  private readonly apiVersion: string;
-  private readonly retryConfig: { maxRetries: number; baseDelay: number; maxDelay: number };
-
-  constructor(config: AzureDevOpsClientConfig = {}) {
-    const organization = config.organization || process.env.ADO_ORGANIZATION;
-    const pat = config.pat || process.env.ADO_PAT;
-
-    if (!organization) {
-      throw new Error('ADO_ORGANIZATION environment variable or organization config required');
-    }
-    if (!pat) {
-      throw new Error('ADO_PAT environment variable or pat config required');
-    }
-
-    this.apiVersion = config.apiVersion || '7.1';
-    this.retryConfig = config.retryConfig || {
-      maxRetries: 3,
-      baseDelay: 1000,
-      maxDelay: 30000,
-    };
-
-    const authToken = Buffer.from(`:${pat}`).toString('base64');
-
-    this.httpClient = axios.create({
-      baseURL: `https://dev.azure.com/${organization}`,
-      timeout: config.timeout || 30000,
-      headers: {
-        Authorization: `Basic ${authToken}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-    });
-  }
-
-  // ========== Work Items ==========
-
-  async getWorkItem(project: string, workItemId: number, expand: string = 'All') {
-    return this.executeWithRetry(() =>
-      this.httpClient.get(`/${project}/_apis/wit/workitems/${workItemId}`, {
-        params: { 'api-version': this.apiVersion, '$expand': expand },
-      })
-    );
-  }
-
-  async getWorkItems(project: string, ids: number[], fields?: string[]) {
-    return this.executeWithRetry(() =>
-      this.httpClient.get(`/${project}/_apis/wit/workitems`, {
-        params: {
-          'api-version': this.apiVersion,
-          ids: ids.join(','),
-          fields: fields?.join(','),
-          errorPolicy: 'Omit',
-        },
-      })
-    );
-  }
-
-  async createWorkItem(project: string, workItemType: string, fields: Record<string, unknown>) {
-    const operations = Object.entries(fields).map(([field, value]) => ({
-      op: 'add',
-      path: `/fields/${field}`,
-      value,
-    }));
-
-    return this.executeWithRetry(() =>
-      this.httpClient.post(`/${project}/_apis/wit/workitems/$${workItemType}`, operations, {
-        params: { 'api-version': this.apiVersion },
-        headers: { 'Content-Type': 'application/json-patch+json' },
-      })
-    );
-  }
-
-  async updateWorkItem(project: string, workItemId: number, updates: Record<string, unknown>) {
-    const operations = Object.entries(updates).map(([field, value]) => ({
-      op: 'replace',
-      path: `/fields/${field}`,
-      value,
-    }));
-
-    return this.executeWithRetry(() =>
-      this.httpClient.patch(`/${project}/_apis/wit/workitems/${workItemId}`, operations, {
-        params: { 'api-version': this.apiVersion },
-        headers: { 'Content-Type': 'application/json-patch+json' },
-      })
-    );
-  }
-
-  async queryWorkItems(project: string, wiql: string, top?: number) {
-    return this.executeWithRetry(() =>
-      this.httpClient.post(`/${project}/_apis/wit/wiql`, { query: wiql }, {
-        params: { 'api-version': this.apiVersion, '$top': top },
-      })
-    );
-  }
-
-  // ========== Git ==========
-
-  async listRepositories(project: string) {
-    return this.executeWithRetry(() =>
-      this.httpClient.get(`/${project}/_apis/git/repositories`, {
-        params: { 'api-version': this.apiVersion },
-      })
-    );
-  }
-
-  async listPullRequests(project: string, repositoryId: string, status: string = 'active') {
-    return this.executeWithRetry(() =>
-      this.httpClient.get(`/${project}/_apis/git/repositories/${repositoryId}/pullrequests`, {
-        params: { 'api-version': this.apiVersion, 'searchCriteria.status': status },
-      })
-    );
-  }
-
-  async createPullRequest(project: string, repositoryId: string, input: {
-    sourceRefName: string;
-    targetRefName: string;
-    title: string;
-    description?: string;
-  }) {
-    return this.executeWithRetry(() =>
-      this.httpClient.post(`/${project}/_apis/git/repositories/${repositoryId}/pullrequests`, input, {
-        params: { 'api-version': this.apiVersion },
-      })
-    );
-  }
-
-  // ========== Pipelines ==========
-
-  async listPipelines(project: string) {
-    return this.executeWithRetry(() =>
-      this.httpClient.get(`/${project}/_apis/pipelines`, {
-        params: { 'api-version': this.apiVersion },
-      })
-    );
-  }
-
-  async runPipeline(project: string, pipelineId: number, input?: {
-    resources?: { repositories?: { self: { refName: string } } };
-    templateParameters?: Record<string, string>;
-  }) {
-    return this.executeWithRetry(() =>
-      this.httpClient.post(`/${project}/_apis/pipelines/${pipelineId}/runs`, input || {}, {
-        params: { 'api-version': this.apiVersion },
-      })
-    );
-  }
-
-  async getPipelineRun(project: string, pipelineId: number, runId: number) {
-    return this.executeWithRetry(() =>
-      this.httpClient.get(`/${project}/_apis/pipelines/${pipelineId}/runs/${runId}`, {
-        params: { 'api-version': this.apiVersion },
-      })
-    );
-  }
-
-  // ========== Projects ==========
-
-  async listProjects() {
-    return this.executeWithRetry(() =>
-      this.httpClient.get('/_apis/projects', {
-        params: { 'api-version': this.apiVersion },
-      })
-    );
-  }
-
-  async getProject(projectIdOrName: string) {
-    return this.executeWithRetry(() =>
-      this.httpClient.get(`/_apis/projects/${projectIdOrName}`, {
-        params: { 'api-version': this.apiVersion },
-      })
-    );
-  }
-
-  // ========== Private Helpers ==========
-
-  private async executeWithRetry<T>(operation: () => Promise<T>): Promise<T> {
-    let lastError: Error | undefined;
-
-    for (let attempt = 0; attempt <= this.retryConfig.maxRetries; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        lastError = error as Error;
-        const axiosError = error as AxiosError;
-
-        if (axiosError.response) {
-          const status = axiosError.response.status;
-          if (status >= 400 && status < 500 && status !== 429) {
-            throw error;
-          }
-        }
-
-        if (attempt === this.retryConfig.maxRetries) {
-          break;
-        }
-
-        const delay = Math.min(
-          this.retryConfig.baseDelay * Math.pow(2, attempt),
-          this.retryConfig.maxDelay
-        );
-        await this.sleep(delay);
-      }
-    }
-
-    throw new Error(`Max retries exceeded: ${lastError?.message}`);
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-}
-
-// Usage
-const client = new AzureDevOpsClient();
-const workItem = await client.getWorkItem('MyProject', 12345);
-```
+| Method | Description |
+|--------|-------------|
+| `list_projects(top, skip)` | List projects |
+| `get_project(project_id_or_name, include_capabilities)` | Get project |
+| `list_teams(project, top)` | List teams |
+| `get_team_members(project, team_id, top)` | Get team members |
+| `list_iterations(project, team, timeframe)` | List iterations |
+| `list_areas(project, depth)` | List area paths |
 
 ---
 
 ## Common Workflows
 
-### 1. Create Bug with Attachments and Links
+### Create Bug with Attachment
 
-```typescript
-async function createBugWithDetails(
-  client: AzureDevOpsClient,
-  project: string,
-  bug: {
-    title: string;
-    reproSteps: string;
-    priority: number;
-    parentId?: number;
-    attachments?: Array<{ name: string; content: Buffer }>;
-  }
-) {
-  // Create the bug
-  const workItem = await client.createWorkItem(project, 'Bug', {
-    'System.Title': bug.title,
-    'Microsoft.VSTS.TCM.ReproSteps': bug.reproSteps,
-    'Microsoft.VSTS.Common.Priority': bug.priority,
-  });
+```python
+from ado_client import AzureDevOpsClient
 
-  const workItemId = workItem.data.id;
+client = AzureDevOpsClient()
 
-  // Upload and link attachments
-  if (bug.attachments) {
-    for (const attachment of bug.attachments) {
-      const uploaded = await uploadAttachment(project, attachment.name, attachment.content);
-      await attachToWorkItem(project, workItemId, uploaded.url);
-    }
-  }
+# Create the bug
+bug = client.create_work_item("MyProject", "Bug", {
+    "System.Title": "Login button not working",
+    "Microsoft.VSTS.TCM.ReproSteps": "<div>1. Click login<br>2. Nothing happens</div>",
+    "Microsoft.VSTS.Common.Priority": 1
+})
 
-  // Link to parent
-  if (bug.parentId) {
-    await linkWorkItems(
-      project,
-      workItemId,
-      bug.parentId,
-      'System.LinkTypes.Hierarchy-Reverse'
-    );
-  }
+if bug["success"]:
+    bug_id = bug["data"]["id"]
 
-  return workItem.data;
-}
+    # Upload and attach screenshot
+    with open("screenshot.png", "rb") as f:
+        upload = client.upload_attachment("MyProject", "screenshot.png", f.read())
+
+    if upload["success"]:
+        client.attach_to_work_item("MyProject", bug_id, upload["data"]["url"], "Bug screenshot")
+
+    print(f"Created bug #{bug_id}")
 ```
 
-### 2. Create PR and Link Work Items
+### Create PR and Link Work Items
 
-```typescript
-async function createPRWithWorkItems(
-  client: AzureDevOpsClient,
-  project: string,
-  repositoryId: string,
-  pr: {
-    sourceBranch: string;
-    targetBranch: string;
-    title: string;
-    description: string;
-    workItemIds: number[];
-  }
-) {
-  const pullRequest = await client.createPullRequest(project, repositoryId, {
-    sourceRefName: `refs/heads/${pr.sourceBranch}`,
-    targetRefName: `refs/heads/${pr.targetBranch}`,
-    title: pr.title,
-    description: pr.description,
-    workItemRefs: pr.workItemIds.map(id => ({ id: id.toString() })),
-  });
+```python
+result = client.create_pull_request(
+    project="MyProject",
+    repository_id="my-repo-id",
+    source_ref="feature/new-login",
+    target_ref="main",
+    title="Add new login feature",
+    description="Implements SSO login with OAuth2",
+    work_item_ids=[12345, 12346]
+)
 
-  return pullRequest.data;
-}
+if result["success"]:
+    pr_id = result["data"]["pullRequestId"]
+    print(f"Created PR #{pr_id}")
 ```
 
-### 3. Monitor Pipeline and Get Logs on Failure
+### Monitor Pipeline and Get Logs on Failure
 
-```typescript
-async function runAndMonitorPipeline(
-  client: AzureDevOpsClient,
-  project: string,
-  pipelineId: number,
-  branch: string
-) {
-  // Start pipeline
-  const run = await client.runPipeline(project, pipelineId, {
-    resources: {
-      repositories: {
-        self: { refName: `refs/heads/${branch}` },
-      },
-    },
-  });
+```python
+import time
 
-  const runId = run.data.id;
+# Start pipeline
+run = client.run_pipeline("MyProject", 42, ref_name="refs/heads/main")
+if not run["success"]:
+    print(f"Failed to start: {run['error']}")
+    exit(1)
 
-  // Poll until complete
-  let status = run.data;
-  while (status.state !== 'completed') {
-    await new Promise(resolve => setTimeout(resolve, 10000));
-    const updated = await client.getPipelineRun(project, pipelineId, runId);
-    status = updated.data;
-  }
+run_id = run["data"]["id"]
+pipeline_id = 42
 
-  // If failed, get logs
-  if (status.result === 'failed') {
-    const logs = await getPipelineRunLogs(project, pipelineId, runId);
-    console.log('Pipeline failed. Logs:', logs);
-  }
+# Poll until complete
+while True:
+    status = client.get_pipeline_run("MyProject", pipeline_id, run_id)
+    if status["success"] and status["data"]["state"] == "completed":
+        break
+    time.sleep(10)
 
-  return status;
-}
+# Check result and get logs if failed
+if status["data"]["result"] == "failed":
+    logs = client.get_pipeline_run_logs("MyProject", pipeline_id, run_id)
+    if logs["success"]:
+        for log in logs["data"]["logs"]:
+            content = client.get_pipeline_log_content("MyProject", pipeline_id, run_id, log["id"])
+            print(f"Log {log['id']}:", content["data"])
 ```
 
 ---
@@ -2628,11 +1306,10 @@ async function runAndMonitorPipeline(
 - [Work Item Tracking API](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/)
 - [Git API](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/)
 - [Pipelines API](https://learn.microsoft.com/en-us/rest/api/azure/devops/pipelines/)
-- [Core API](https://learn.microsoft.com/en-us/rest/api/azure/devops/core/)
 - [WIQL Syntax](https://learn.microsoft.com/en-us/azure/devops/boards/queries/wiql-syntax)
 
 ---
 
-**Skill Version**: 1.0.0
+**Skill Version**: 2.0.0
 **API Version**: 7.1
-**Last Updated**: 2024
+**Last Updated**: 2025

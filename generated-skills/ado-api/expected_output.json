@@ -1,0 +1,142 @@
+{
+  "get_work_item_success": {
+    "success": true,
+    "data": {
+      "id": 12345,
+      "rev": 5,
+      "fields": {
+        "System.Id": 12345,
+        "System.Title": "Implement feature X",
+        "System.State": "Active",
+        "System.WorkItemType": "User Story",
+        "System.AssignedTo": {
+          "displayName": "John Doe",
+          "uniqueName": "john.doe@company.com"
+        },
+        "System.CreatedDate": "2024-01-15T10:30:00Z",
+        "System.ChangedDate": "2024-01-20T14:45:00Z",
+        "Microsoft.VSTS.Common.Priority": 2
+      },
+      "url": "https://dev.azure.com/myorg/MyProject/_apis/wit/workitems/12345"
+    }
+  },
+  "get_work_item_error": {
+    "success": false,
+    "error": {
+      "status_code": 404,
+      "message": "TF401019: The specified work item does not exist."
+    }
+  },
+  "create_work_item_success": {
+    "success": true,
+    "data": {
+      "id": 12346,
+      "rev": 1,
+      "fields": {
+        "System.Id": 12346,
+        "System.Title": "Login button not working",
+        "System.WorkItemType": "Bug",
+        "System.State": "New",
+        "Microsoft.VSTS.Common.Priority": 1
+      }
+    }
+  },
+  "query_work_items_success": {
+    "success": true,
+    "data": {
+      "queryType": "flat",
+      "asOf": "2024-01-20T15:00:00Z",
+      "columns": [
+        {"referenceName": "System.Id", "name": "ID"},
+        {"referenceName": "System.Title", "name": "Title"}
+      ],
+      "workItems": [
+        {"id": 12345, "url": "https://dev.azure.com/myorg/MyProject/_apis/wit/workitems/12345"},
+        {"id": 12346, "url": "https://dev.azure.com/myorg/MyProject/_apis/wit/workitems/12346"}
+      ]
+    }
+  },
+  "list_repositories_success": {
+    "success": true,
+    "data": {
+      "value": [
+        {
+          "id": "repo-guid-1",
+          "name": "my-repo",
+          "url": "https://dev.azure.com/myorg/_apis/git/repositories/repo-guid-1",
+          "defaultBranch": "refs/heads/main",
+          "webUrl": "https://dev.azure.com/myorg/MyProject/_git/my-repo"
+        }
+      ],
+      "count": 1
+    }
+  },
+  "create_pull_request_success": {
+    "success": true,
+    "data": {
+      "pullRequestId": 123,
+      "status": "active",
+      "title": "Add new login feature",
+      "sourceRefName": "refs/heads/feature/new-login",
+      "targetRefName": "refs/heads/main",
+      "createdBy": {
+        "displayName": "John Doe",
+        "uniqueName": "john.doe@company.com"
+      },
+      "creationDate": "2024-01-20T16:00:00Z"
+    }
+  },
+  "run_pipeline_success": {
+    "success": true,
+    "data": {
+      "id": 500,
+      "name": "20240120.1",
+      "state": "inProgress",
+      "pipeline": {
+        "id": 42,
+        "name": "Build Pipeline"
+      },
+      "createdDate": "2024-01-20T16:30:00Z"
+    }
+  },
+  "list_projects_success": {
+    "success": true,
+    "data": {
+      "value": [
+        {
+          "id": "project-guid-1",
+          "name": "MyProject",
+          "state": "wellFormed",
+          "visibility": "private"
+        },
+        {
+          "id": "project-guid-2",
+          "name": "AnotherProject",
+          "state": "wellFormed",
+          "visibility": "private"
+        }
+      ],
+      "count": 2
+    }
+  },
+  "authentication_error": {
+    "success": false,
+    "error": {
+      "status_code": 401,
+      "message": "TF401019: The authentication token is invalid or expired."
+    }
+  },
+  "permission_error": {
+    "success": false,
+    "error": {
+      "status_code": 403,
+      "message": "TF400813: The user does not have permission to access this resource."
+    }
+  },
+  "network_error": {
+    "success": false,
+    "error": {
+      "message": "Connection timeout"
+    }
+  }
+}
