@@ -1,0 +1,46 @@
+{
+  "search_library_result": {
+    "libraries": [
+      {
+        "id": "/vercel/next.js",
+        "name": "Next.js",
+        "description": "The React Framework for the Web",
+        "code_snippets": 1250,
+        "trust_score": "High"
+      },
+      {
+        "id": "/vercel/next.js/v14.2.0",
+        "name": "Next.js v14.2.0",
+        "description": "Next.js version 14.2.0",
+        "code_snippets": 980,
+        "trust_score": "High"
+      }
+    ]
+  },
+  "get_docs_result": {
+    "snippets": [
+      {
+        "title": "Dynamic Routes",
+        "content": "```typescript\n// app/blog/[slug]/page.tsx\nexport default function Page({ params }: { params: { slug: string } }) {\n  return <div>My Post: {params.slug}</div>\n}\n```",
+        "source": "https://nextjs.org/docs/app/building-your-application/routing/dynamic-routes"
+      },
+      {
+        "title": "Route Groups",
+        "content": "```typescript\n// app/(marketing)/about/page.tsx\n// This route is accessible at /about\nexport default function AboutPage() {\n  return <div>About Us</div>\n}\n```",
+        "source": "https://nextjs.org/docs/app/building-your-application/routing/route-groups"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "totalPages": 5,
+      "hasNext": true,
+      "hasPrev": false
+    }
+  },
+  "usage_summary": {
+    "total_requests": 3,
+    "snippets_retrieved": 25,
+    "libraries_searched": 1
+  }
+}

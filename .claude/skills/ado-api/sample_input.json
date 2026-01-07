@@ -1,0 +1,66 @@
+{
+  "get_work_item": {
+    "project": "MyProject",
+    "work_item_id": 12345,
+    "expand": "All"
+  },
+  "create_work_item": {
+    "project": "MyProject",
+    "work_item_type": "Bug",
+    "fields": {
+      "System.Title": "Login button not working",
+      "System.Description": "<div>Users cannot log in</div>",
+      "Microsoft.VSTS.Common.Priority": 1
+    }
+  },
+  "query_work_items": {
+    "project": "MyProject",
+    "wiql": "SELECT [System.Id], [System.Title] FROM WorkItems WHERE [System.State] = 'Active'",
+    "top": 50
+  },
+  "list_repositories": {
+    "project": "MyProject"
+  },
+  "create_pull_request": {
+    "project": "MyProject",
+    "repository_id": "repo-guid-here",
+    "source_ref": "feature/new-login",
+    "target_ref": "main",
+    "title": "Add new login feature",
+    "description": "Implements SSO with OAuth2",
+    "reviewers": ["reviewer-guid"],
+    "work_item_ids": [12345]
+  },
+  "list_pull_requests": {
+    "project": "MyProject",
+    "repository_id": "repo-guid-here",
+    "status": "active",
+    "top": 20
+  },
+  "run_pipeline": {
+    "project": "MyProject",
+    "pipeline_id": 42,
+    "ref_name": "refs/heads/main",
+    "template_parameters": {
+      "environment": "staging"
+    },
+    "variables": {
+      "debug": "true"
+    }
+  },
+  "list_pipelines": {
+    "project": "MyProject",
+    "top": 100
+  },
+  "list_projects": {
+    "top": 50,
+    "skip": 0
+  },
+  "link_work_items": {
+    "project": "MyProject",
+    "source_id": 100,
+    "target_id": 101,
+    "link_type": "System.LinkTypes.Hierarchy-Forward",
+    "comment": "Adding task as child"
+  }
+}
