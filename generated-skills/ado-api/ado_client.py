@@ -24,9 +24,22 @@ class AzureDevOpsClient:
       organization: Azure DevOps organization name (or set ADO_ORGANIZATION env var)
       pat: Personal Access Token (or set ADO_PAT env var)
       api_version: API version to use (default: 7.1)
+
+    Raises:
+      ValueError: If organization or pat is not provided and not set in environment
     """
     self.organization = organization or os.getenv("ADO_ORGANIZATION")
     self.pat = pat or os.getenv("ADO_PAT")
+
+    if not self.organization:
+      raise ValueError(
+        "organization is required. Provide it as a parameter or set ADO_ORGANIZATION env var."
+      )
+    if not self.pat:
+      raise ValueError(
+        "pat is required. Provide it as a parameter or set ADO_PAT env var."
+      )
+
     self.api_version = api_version
     self.base_url = f"https://dev.azure.com/{self.organization}"
     self._session = requests.Session()
@@ -440,13 +453,13 @@ class AzureDevOpsClient:
 
   def list_teams(self, project: str, top: int = None) -> Dict[str, Any]:
     """List teams in a project."""
-    url = self._build_url("teams", project)
+    url = f"{self.base_url}/_apis/projects/{project}/teams"
     params = self._add_params({}, **{"$top": top})
     return self._request("GET", url, params=params)
 
   def get_team_members(self, project: str, team_id: str, top: int = None) -> Dict[str, Any]:
     """Get members of a team."""
-    url = self._build_url(f"teams/{team_id}/members", project)
+    url = f"{self.base_url}/_apis/projects/{project}/teams/{team_id}/members"
     params = self._add_params({}, **{"$top": top})
     return self._request("GET", url, params=params)
 
