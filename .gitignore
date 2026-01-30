@@ -56,3 +56,5 @@ generated-hooks/integration-test-*/
 
 .claude/data/*
 .claude/logs/*
+.omc/sessions/*
+.omc/state/*
