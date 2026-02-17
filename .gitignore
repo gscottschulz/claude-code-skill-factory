@@ -58,3 +58,4 @@ generated-hooks/integration-test-*/
 .claude/logs/*
 .omc/sessions/*
 .omc/state/*
+.omc/project-memory.json
