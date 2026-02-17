@@ -1,8 +1,13 @@
 {
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "context7",
     "filesystem",
     "github"
   ],
-  "enableAllProjectMcpServers": true
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)"
+    ]
+  }
 }
