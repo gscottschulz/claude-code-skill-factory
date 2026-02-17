@@ -59,3 +59,6 @@ generated-hooks/integration-test-*/
 .omc/sessions/*
 .omc/state/*
 .omc/project-memory.json
+
+# Node.js
+**/node_modules/
