@@ -1,0 +1,15 @@
+{
+  "name": "ado-api-ts",
+  "version": "1.0.0",
+  "description": "Azure DevOps REST API client - TypeScript",
+  "type": "module",
+  "scripts": {
+    "cli": "npx tsx ado.ts",
+    "typecheck": "npx tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "@types/node": "^24.10.13"
+  }
+}
