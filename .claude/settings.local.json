@@ -1,14 +1,19 @@
 {
   "permissions": {
     "allow": [
+      "Bash(git -C /Users/scott/Repos/personal/claude-code-skill-factory add:*)",
+      "Bash(git -C /Users/scott/Repos/personal/claude-code-skill-factory commit:*)",
+      "Bash(git -C /Users/scott/Repos/personal/claude-code-skill-factory diff:*)",
+      "Bash(git -C /Users/scott/Repos/personal/claude-code-skill-factory log:*)",
+      "Bash(git -C /Users/scott/Repos/personal/claude-code-skill-factory status:*)",
       "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git status:*)",
       "Bash(npx tsx:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "context7",
-    "filesystem",
-    "github"
-  ]
+  "enabledMcpjsonServers": ["context7", "filesystem", "github"]
 }
