@@ -12,6 +12,7 @@ Functional TypeScript client for the Azure DevOps REST API v7.1. Provides both a
 ### Claude Code Skill (Personal)
 
 ```bash
+rm -rf ~/.claude/skills/ado-api-ts/node_modules/
 cp -r generated-skills/ado-api-ts ~/.claude/skills/
 npm install --prefix ~/.claude/skills/ado-api-ts
 ```

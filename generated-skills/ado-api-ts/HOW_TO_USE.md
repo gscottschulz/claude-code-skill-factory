@@ -114,6 +114,14 @@ npx tsx ado.ts get-project "My Project"
 npx tsx ado.ts list-teams "My Project"
 ```
 
+### Identity Operations
+
+```bash
+# Look up a user by email address
+# Returns the identity GUID (storage key) for PR reviewer assignment and comment mentions
+npx tsx ado.ts get-user-by-email "jane.smith@company.com"
+```
+
 ---
 
 ## TypeScript Client Usage
@@ -216,6 +224,29 @@ if (result.success) {
       console.log(`#${item.id}: ${item.fields["System.Title"]}`);
     }
   }
+}
+```
+
+### Look Up User and Add as PR Reviewer
+
+```typescript
+import { AzureDevOpsClient } from "./ado_client.js";
+
+const client = new AzureDevOpsClient();
+
+// Look up a user by email
+const user = await client.getUserByEmail("jane.smith@company.com");
+if (user.success) {
+  console.log(`Found: ${user.data.displayName} (${user.data.id})`);
+
+  // Use the ID to create a PR with that user as reviewer
+  await client.createPullRequest(
+    "My Project", "my-repo-id",
+    "feature/new-login", "main",
+    "Add new login flow",
+    "Redesigned login page with SSO support",
+    [user.data.id]  // reviewer ID from getUserByEmail
+  );
 }
 ```
 

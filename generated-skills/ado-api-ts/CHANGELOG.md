@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `listGraphUsers(subjectTypes?, continuationToken?)` method on `AzureDevOpsClient` for paginated Graph API user listing via `vssps.dev.azure.com`
+- `getGraphStorageKey(descriptor)` method to resolve a graph descriptor to a storage key (identity GUID) for PR reviewer assignment and user mentions
+- `getUserByEmail(email)` method that looks up a user by email address, returning the storage key (identity GUID) suitable for PR reviewer assignment and comment mentions, with automatic pagination through the Graph Users API
+- `get-user-by-email <email>` CLI command in new "Identity" section
+- `vsspsBaseUrl` property on client for Graph API requests to `vssps.dev.azure.com/{org}`
+- `responseHeaders` optional field on `ApiResponse` interface for capturing pagination continuation tokens
+- Graph / Identity API section in `ado-api-reference.md` with endpoints, parameters, and workflow documentation
+- Identity operations section in `HOW_TO_USE.md` with CLI and TypeScript client examples
+- Graph / Identity methods table in `SKILL.md`
+
+### Changed
+- `request()` method now captures `X-MS-ContinuationToken` response header for pagination support
+- Method count in SKILL.md updated from 43 to 46
+
 ## [1.1.0] - 2026-02-17
 
 ### Added

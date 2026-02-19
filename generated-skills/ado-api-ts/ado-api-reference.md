@@ -105,6 +105,44 @@ const baseUrl = `https://dev.azure.com/${organization}`;
 
 ---
 
+## Graph / Identity API
+
+**Base URL**: `https://vssps.dev.azure.com/{organization}` (different from main API)
+
+| Operation | Method | Endpoint |
+|-----------|--------|----------|
+| List Graph Users | GET | `/_apis/graph/users?api-version=7.1-preview.1` |
+| Get Graph User | GET | `/_apis/graph/users/{userDescriptor}?api-version=7.1-preview.1` |
+| Get Storage Key | GET | `/_apis/graph/storagekeys/{subjectDescriptor}?api-version=7.1` |
+
+**List Graph Users Parameters**:
+
+| Parameter | Description |
+|-----------|-------------|
+| `subjectTypes` | Comma-separated: `aad`, `msa`, `svc`, `imp` |
+| `continuationToken` | Opaque token for pagination (from `X-MS-ContinuationToken` header) |
+| `scopeDescriptor` | Non-default scope (collection, project) |
+
+**GraphUser Response Fields**:
+
+| Field | Description |
+|-------|-------------|
+| `descriptor` | Primary reference for the graph subject (e.g., `aad.MDA0NzBl...`) |
+| `displayName` | User's display name |
+| `mailAddress` | Email address of record |
+| `principalName` | UPN from source provider (often same as email) |
+| `originId` | Unique ID from origin system (AAD Object ID) |
+| `origin` | Source provider type (`aad`, `msa`, `vsts`) |
+
+**Storage Key Response**: `{ "value": "62a9f1bd-..." }` - This UUID is the identity GUID used for PR reviewer assignment and user mentions.
+
+**User Lookup Workflow**:
+1. List graph users, filter by `mailAddress` or `principalName`
+2. Resolve the matched user's `descriptor` to a storage key
+3. Use the storage key `value` as the `id` for PR reviewers or comment mentions
+
+---
+
 ## Common Query Parameters
 
 | Parameter | Description |

@@ -144,6 +144,13 @@ npx tsx ado.ts get-project "My Project"
 npx tsx ado.ts list-teams "My Project"
 ```
 
+### Identity
+
+```bash
+# Look up user by email (returns ID for PR reviewers and comment mentions)
+npx tsx ado.ts get-user-by-email "user@example.com"
+```
+
 ---
 
 ## TypeScript Client Examples
@@ -232,7 +239,7 @@ All methods return:
 
 ---
 
-## Available Methods (43 total)
+## Available Methods (46 total)
 
 ### Work Items (12 methods)
 
@@ -296,6 +303,14 @@ All methods return:
 | `getTeamMembers(project, team_id)` | Get team members |
 | `listIterations(project, team)` | List iterations |
 | `listAreas(project)` | List area paths |
+
+### Graph / Identity (3 methods)
+
+| Method | Description |
+|--------|-------------|
+| `listGraphUsers(subjectTypes?, continuationToken?)` | List graph users (paginated) |
+| `getGraphStorageKey(descriptor)` | Resolve descriptor to identity GUID |
+| `getUserByEmail(email)` | Look up user by email (returns ID for PR reviewers/mentions) |
 
 ---
 
