@@ -36,6 +36,9 @@
  *     get-project <name>                               Get project details
  *     list-teams <project>                             List teams
  *
+ *   Identity:
+ *     get-user-by-email <email>                        Look up user by email
+ *
  * Environment:
  *   ADO_ORGANIZATION  Azure DevOps organization name
  *   ADO_PAT           Personal Access Token
@@ -89,6 +92,9 @@ Projects:
   get-project <name>                               Get project details
   list-teams <project>                             List teams
 
+Identity:
+  get-user-by-email <email>                        Look up user by email
+
 Environment:
   ADO_ORGANIZATION  Azure DevOps organization name
   ADO_PAT           Personal Access Token
@@ -118,6 +124,7 @@ const VALID_COMMANDS = new Set([
   "list-projects",
   "get-project",
   "list-teams",
+  "get-user-by-email",
   "help",
   "--help",
   "-h",
@@ -143,7 +150,7 @@ async function main(): Promise<void> {
   }
 
   // Commands that never need a project argument
-  const NO_PROJECT_COMMANDS = new Set(["list-projects"]);
+  const NO_PROJECT_COMMANDS = new Set(["list-projects", "get-user-by-email"]);
 
   // Commands where the first numeric arg is a PR ID (project + repo auto-resolved)
   const PR_COMMANDS = new Set([
@@ -249,6 +256,9 @@ async function main(): Promise<void> {
     "list-projects": () => client.listProjects(),
     "get-project": () => client.getProject(args[0]),
     "list-teams": () => client.listTeams(args[0]),
+
+    // Identity
+    "get-user-by-email": () => client.getUserByEmail(args[0]),
   };
 
   try {

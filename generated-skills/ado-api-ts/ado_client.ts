@@ -16,6 +16,7 @@ export interface ApiResponse<T = any> {
     status_code?: number;
     message: string;
   };
+  responseHeaders?: Record<string, string>;
 }
 
 export interface ClientConfig {
@@ -29,6 +30,7 @@ export class AzureDevOpsClient {
   private pat: string;
   private apiVersion: string;
   private baseUrl: string;
+  private vsspsBaseUrl: string;
   private authHeader: string;
 
   constructor(config?: ClientConfig) {
@@ -48,6 +50,7 @@ export class AzureDevOpsClient {
 
     this.apiVersion = config?.apiVersion || "7.1";
     this.baseUrl = `https://dev.azure.com/${this.organization}`;
+    this.vsspsBaseUrl = `https://vssps.dev.azure.com/${this.organization}`;
     this.authHeader = `Basic ${Buffer.from(`:${this.pat}`).toString("base64")}`;
   }
 
@@ -105,14 +108,22 @@ export class AzureDevOpsClient {
       const response = await fetch(urlObj.toString(), fetchOptions);
 
       if (response.ok) {
+        const resp: ApiResponse<T> = { success: true };
+        const ct = response.headers.get("x-ms-continuationtoken");
+        if (ct) {
+          resp.responseHeaders = { "x-ms-continuationtoken": ct };
+        }
         if (response.status === 204) {
-          return { success: true, data: undefined as any };
+          resp.data = undefined as any;
+          return resp;
         }
         const text = await response.text();
         if (!text) {
-          return { success: true, data: undefined as any };
+          resp.data = undefined as any;
+          return resp;
         }
-        return { success: true, data: JSON.parse(text) };
+        resp.data = JSON.parse(text);
+        return resp;
       } else {
         return {
           success: false,
@@ -843,5 +854,103 @@ export class AzureDevOpsClient {
       };
     }
     return { success: true, data: { project } };
+  }
+
+  // ===========================================================================
+  // GRAPH / IDENTITY (3 methods)
+  // ===========================================================================
+
+  /**
+   * List graph users with optional filtering and pagination.
+   * Uses vssps.dev.azure.com (Graph API).
+   */
+  async listGraphUsers(
+    subjectTypes?: string[],
+    continuationToken?: string
+  ): Promise<ApiResponse> {
+    const url = `${this.vsspsBaseUrl}/_apis/graph/users`;
+    const params: Record<string, any> = {};
+    if (subjectTypes?.length) {
+      params.subjectTypes = subjectTypes.join(",");
+    }
+    if (continuationToken) {
+      params.continuationToken = continuationToken;
+    }
+    return this.request("GET", url, { params, apiVersion: "7.1-preview.1" });
+  }
+
+  /**
+   * Resolve a graph descriptor to a storage key (identity GUID).
+   * The storage key is the ID used for PR reviewer assignment and user mentions.
+   */
+  async getGraphStorageKey(
+    descriptor: string
+  ): Promise<ApiResponse<{ value: string }>> {
+    const url = `${this.vsspsBaseUrl}/_apis/graph/storagekeys/${descriptor}`;
+    return this.request("GET", url, { apiVersion: "7.1" });
+  }
+
+  /**
+   * Look up a user's identity by email address.
+   * Returns the storage key (identity GUID) suitable for PR reviewer assignment
+   * and user mentions in comments, plus the graph descriptor and display name.
+   *
+   * Paginates through Graph Users API, matching on mailAddress or principalName.
+   */
+  async getUserByEmail(
+    email: string
+  ): Promise<ApiResponse<{
+    id: string;
+    descriptor: string;
+    displayName: string;
+    email: string;
+    originId: string;
+  }>> {
+    const emailLower = email.toLowerCase();
+    let continuationToken: string | undefined;
+
+    do {
+      const result = await this.listGraphUsers(
+        ["aad", "msa"],
+        continuationToken
+      );
+      if (!result.success || !result.data?.value) {
+        return {
+          success: false,
+          error: result.error || { message: "Failed to list graph users." },
+        };
+      }
+
+      const match = result.data.value.find(
+        (u: any) =>
+          u.mailAddress?.toLowerCase() === emailLower ||
+          u.principalName?.toLowerCase() === emailLower
+      );
+
+      if (match) {
+        const storageResult = await this.getGraphStorageKey(match.descriptor);
+        const id = storageResult.success && storageResult.data?.value
+          ? storageResult.data.value
+          : match.originId;
+
+        return {
+          success: true,
+          data: {
+            id,
+            descriptor: match.descriptor,
+            displayName: match.displayName,
+            email: match.mailAddress || match.principalName,
+            originId: match.originId,
+          },
+        };
+      }
+
+      continuationToken = result.responseHeaders?.["x-ms-continuationtoken"];
+    } while (continuationToken);
+
+    return {
+      success: false,
+      error: { message: `No user found with email: ${email}` },
+    };
   }
 }
