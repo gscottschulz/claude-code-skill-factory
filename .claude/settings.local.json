@@ -11,9 +11,14 @@
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git status:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "WebFetch(domain:docs.anthropic.com)"
     ]
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["context7", "filesystem", "github"]
+  "enabledMcpjsonServers": [
+    "context7",
+    "filesystem",
+    "github"
+  ]
 }
