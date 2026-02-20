@@ -12,7 +12,8 @@
       "Bash(git log:*)",
       "Bash(git status:*)",
       "Bash(npx tsx:*)",
-      "WebFetch(domain:docs.anthropic.com)"
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(npx tsc:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
