@@ -50,7 +50,8 @@ npx tsx ado.ts query "My Project" "SELECT [System.Id], [System.Title] FROM WorkI
 npx tsx ado.ts get-comments "My Project" 42731
 
 # Add a comment
-npx tsx ado.ts add-comment "My Project" 42731 "Investigated - this is a CSS specificity issue"
+# First write comment to /tmp/ado-comment-wi-42731.md, then:
+COMMENT=$(cat /tmp/ado-comment-wi-42731.md) && npx tsx ado.ts add-comment "My Project" 42731 "$COMMENT"
 ```
 
 ### Pull Request Operations
@@ -66,7 +67,8 @@ npx tsx ado.ts get-pr "My Project" "my-repo-id" 456
 npx tsx ado.ts get-pr-threads "My Project" "my-repo-id" 456
 
 # Post a general comment on a PR
-npx tsx ado.ts add-pr-comment "My Project" "my-repo-id" 456 "Looks good overall. One minor suggestion below."
+# First write comment to /tmp/ado-comment-pr-456.md, then:
+COMMENT=$(cat /tmp/ado-comment-pr-456.md) && npx tsx ado.ts add-pr-comment "My Project" "my-repo-id" 456 "$COMMENT"
 ```
 
 ### Repository Operations
@@ -146,6 +148,7 @@ const client2 = new AzureDevOpsClient({
 ### Create Bug with Comment
 
 ```typescript
+import * as fs from 'fs';
 import { AzureDevOpsClient } from "./ado_client.js";
 
 const client = new AzureDevOpsClient();
@@ -162,13 +165,15 @@ if (bug.success) {
   console.log(`Created bug #${bugId}`);
 
   // Add a comment
-  await client.addWorkItemComment("My Project", bugId, "Assigned to frontend team for investigation.");
+  const comment = fs.readFileSync(`/tmp/ado-comment-wi-${bugId}.md`, 'utf-8');
+  await client.addWorkItemComment("My Project", bugId, comment);
 }
 ```
 
 ### Review a Pull Request
 
 ```typescript
+import * as fs from 'fs';
 import { AzureDevOpsClient } from "./ado_client.js";
 
 const client = new AzureDevOpsClient();
@@ -185,12 +190,14 @@ const threads = await client.getPullRequestThreads(project, repoId, prId);
 console.log(`${threads.data.value.length} comment threads`);
 
 // Add a general comment
-await client.addPullRequestThread(project, repoId, prId, "LGTM! Approved.");
+const generalComment = fs.readFileSync(`/tmp/ado-comment-pr-${prId}.md`, 'utf-8');
+await client.addPullRequestThread(project, repoId, prId, generalComment);
 
 // Add an inline comment on a specific file and line
+const inlineComment = fs.readFileSync(`/tmp/ado-comment-pr-${prId}.md`, 'utf-8');
 await client.addPullRequestThread(
   project, repoId, prId,
-  "Consider using `const` instead of `let` here since the value is never reassigned.",
+  inlineComment,
   "active",
   "/src/utils/helper.ts",
   42

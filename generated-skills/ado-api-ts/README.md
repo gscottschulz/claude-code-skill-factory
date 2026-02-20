@@ -56,7 +56,8 @@ npx tsx ado.ts list-projects
 npx tsx ado.ts get-work-item "My Project" 42731
 
 # Add a PR comment
-npx tsx ado.ts add-pr-comment "My Project" "repo-id" 123 "LGTM!"
+# First write comment to /tmp/ado-comment-pr-123.md, then:
+COMMENT=$(cat /tmp/ado-comment-pr-123.md) && npx tsx ado.ts add-pr-comment "My Project" "repo-id" 123 "$COMMENT"
 ```
 
 ### TypeScript Client

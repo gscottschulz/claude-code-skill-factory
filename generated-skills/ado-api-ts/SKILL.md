@@ -46,8 +46,8 @@ npx tsx ado.ts get-work-item 45234
 # Instead of: npx tsx ado.ts get-pr-threads "UMC Food Ministry" "dcab2b26-..." 3395
 npx tsx ado.ts get-pr-threads 3395
 
-# Instead of: npx tsx ado.ts add-pr-comment "UMC Food Ministry" "dcab2b26-..." 3395 "LGTM!"
-npx tsx ado.ts add-pr-comment 3395 "LGTM!"
+# Instead of: npx tsx ado.ts add-pr-comment "UMC Food Ministry" "dcab2b26-..." 3395 "$COMMENT"
+COMMENT=$(cat /tmp/ado-comment-pr-3395.md) && npx tsx ado.ts add-pr-comment 3395 "$COMMENT"
 ```
 
 **Supported commands:**
@@ -55,6 +55,57 @@ npx tsx ado.ts add-pr-comment 3395 "LGTM!"
 - **Work item commands** (auto-resolves project): `get-work-item`, `update-work-item`, `delete-work-item`, `get-comments`, `add-comment`
 
 You can still pass the project explicitly if preferred.
+
+---
+
+## Posting Comments (Required Workflow)
+
+**ALWAYS write comments to a `/tmp` file first, then read via `cat` when posting.** This ensures proper handling of multiline markdown, special characters, and ADO linking syntax. Never pass comment text as an inline CLI argument.
+
+### File Naming Convention
+
+| Type | Filename Pattern | Example |
+|------|-----------------|---------|
+| PR comment | `/tmp/ado-comment-pr-{id}.md` | `/tmp/ado-comment-pr-3445.md` |
+| Work item comment | `/tmp/ado-comment-wi-{id}.md` | `/tmp/ado-comment-wi-42731.md` |
+
+### Workflow
+
+**PR Comment:**
+
+```bash
+# Step 1: Write comment content to /tmp/ado-comment-pr-3445.md using the Write tool
+
+# Step 2: Post the comment
+COMMENT=$(cat /tmp/ado-comment-pr-3445.md) && npx tsx ado.ts add-pr-comment 3445 "$COMMENT"
+```
+
+**Work Item Comment:**
+
+```bash
+# Step 1: Write comment content to /tmp/ado-comment-wi-42731.md using the Write tool
+
+# Step 2: Post the comment
+COMMENT=$(cat /tmp/ado-comment-wi-42731.md) && npx tsx ado.ts add-comment 42731 "$COMMENT"
+```
+
+### Markdown Rules for Comment Files
+
+When writing the markdown file to `/tmp`:
+
+- Use `#` to reference work items (e.g., `#1234`) - creates proper ADO links
+- Use `!` to reference PRs (e.g., `!3445`) - creates proper ADO links
+- **NEVER** use the em-dash character. Always use regular hyphen/dash (`-`)
+
+### Cleanup
+
+After a successful post, remove the `/tmp` file to avoid stale content:
+
+```bash
+rm /tmp/ado-comment-pr-3445.md
+# or
+rm /tmp/ado-comment-wi-42731.md
+```
 
 ---
 
@@ -84,7 +135,8 @@ npx tsx ado.ts query "My Project" "SELECT [System.Id] FROM WorkItems WHERE [Syst
 npx tsx ado.ts get-comments 42731
 
 # Add work item comment (auto-resolves project)
-npx tsx ado.ts add-comment 42731 "My comment here"
+# First write comment to /tmp/ado-comment-wi-42731.md, then:
+COMMENT=$(cat /tmp/ado-comment-wi-42731.md) && npx tsx ado.ts add-comment 42731 "$COMMENT"
 ```
 
 ### Git / Pull Requests
@@ -103,7 +155,8 @@ npx tsx ado.ts get-pr 3395
 npx tsx ado.ts get-pr-threads 3395
 
 # Add PR comment (auto-resolves project + repo)
-npx tsx ado.ts add-pr-comment 3395 "LGTM!"
+# First write comment to /tmp/ado-comment-pr-3395.md, then:
+COMMENT=$(cat /tmp/ado-comment-pr-3395.md) && npx tsx ado.ts add-pr-comment 3395 "$COMMENT"
 
 # List branches (project + repo required)
 npx tsx ado.ts list-branches "My Project" "repo-id"
@@ -188,9 +241,11 @@ console.log(JSON.stringify(result, null, 2));
 
 ```bash
 npx tsx -e "
+import * as fs from 'fs';
 import { AzureDevOpsClient } from './generated-skills/ado-api-ts/ado_client.js';
 const client = new AzureDevOpsClient();
-const result = await client.addPullRequestThread('My Project', 'repo-id', 123, 'Great work!');
+const comment = fs.readFileSync('/tmp/ado-comment-pr-123.md', 'utf-8');
+const result = await client.addPullRequestThread('My Project', 'repo-id', 123, comment);
 console.log(JSON.stringify(result, null, 2));
 "
 ```
@@ -199,11 +254,13 @@ console.log(JSON.stringify(result, null, 2));
 
 ```bash
 npx tsx -e "
+import * as fs from 'fs';
 import { AzureDevOpsClient } from './generated-skills/ado-api-ts/ado_client.js';
 const client = new AzureDevOpsClient();
+const comment = fs.readFileSync('/tmp/ado-comment-pr-123.md', 'utf-8');
 const result = await client.addPullRequestThread(
   'My Project', 'repo-id', 123,
-  'Consider using const here.',
+  comment,
   'active',
   '/src/utils/helper.ts',
   42
