@@ -12,9 +12,9 @@ Functional TypeScript client for the Azure DevOps REST API v7.1. Provides both a
 ### Claude Code Skill (Personal)
 
 ```bash
-rm -rf ~/.claude/skills/ado-api-ts/node_modules/
 cp -r generated-skills/ado-api-ts ~/.claude/skills/
-npm install --prefix ~/.claude/skills/ado-api-ts
+rm -rf ~/.claude/skills/ado-api-ts/node_modules/
+npm ci --prefix ~/.claude/skills/ado-api-ts
 ```
 
 ### Claude Code Skill (Project)
@@ -73,11 +73,12 @@ console.log(result);
 
 ## Features
 
-- **43 API methods** across 4 domains (Work Items, Git, Pipelines, Projects)
+- **47 API methods** across 5 domains (Work Items, Git, Pipelines, Projects, Identity)
 - **Zero external HTTP dependencies** - uses Node.js native fetch
 - **Consistent response format** - all methods return `{ success, data/error }`
 - **CLI + programmatic** - use from command line or import in scripts
 - **Full PR comment support** - general, file-level, and line-level comments
+- **@mention support** - resolve users by email or display name for ADO mention syntax
 - **TypeScript types** - full type safety with exported interfaces
 
 ## Files

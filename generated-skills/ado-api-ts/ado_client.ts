@@ -953,4 +953,106 @@ export class AzureDevOpsClient {
       error: { message: `No user found with email: ${email}` },
     };
   }
+
+  /**
+   * Search for users by display name.
+   * Returns all matching users (word-boundary matching with full-name prefix fallback).
+   * Always present matches for user disambiguation - never auto-select.
+   *
+   * Matching algorithm:
+   * - Full-name prefix: "Scott Schulz" matches displayName starting with "Scott Schulz"
+   * - Word boundary: "Scott" matches "Scott Schulz" but NOT "Prescott Adams"
+   *   (splits displayName into words, checks if any word starts with query)
+   *
+   * Storage keys are resolved in parallel via Promise.allSettled.
+   */
+  async searchUsersByDisplayName(
+    query: string,
+    maxResults: number = 20
+  ): Promise<ApiResponse<Array<{
+    id: string;
+    descriptor: string;
+    displayName: string;
+    email: string;
+    originId: string;
+  }>>> {
+    const trimmed = query?.trim();
+    if (!trimmed) {
+      return {
+        success: false,
+        error: { message: "Search query cannot be empty" },
+      };
+    }
+
+    const queryLower = trimmed.toLowerCase();
+    const matches: Array<{
+      descriptor: string;
+      displayName: string;
+      email: string;
+      originId: string;
+    }> = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const result = await this.listGraphUsers(
+        ["aad", "msa"],
+        continuationToken
+      );
+      if (!result.success || !result.data?.value) {
+        return {
+          success: false,
+          error: result.error || { message: "Failed to list graph users." },
+        };
+      }
+
+      for (const u of result.data.value) {
+        if (matches.length >= maxResults) { break; }
+        const name = (u.displayName || "").toLowerCase();
+        // Full-name prefix match (handles multi-word queries like "Scott Schulz")
+        const fullNameMatch = name.startsWith(queryLower);
+        // Word-boundary match (handles "Scott" matching "Scott Schulz" but not "Prescott Adams")
+        const words = name.split(/\s+/);
+        const wordMatch = words.some((word: string) => word.startsWith(queryLower));
+        if (fullNameMatch || wordMatch) {
+          matches.push({
+            descriptor: u.descriptor,
+            displayName: u.displayName,
+            email: u.mailAddress || u.principalName || "",
+            originId: u.originId,
+          });
+        }
+      }
+
+      if (matches.length >= maxResults) { break; }
+      continuationToken = result.responseHeaders?.["x-ms-continuationtoken"];
+    } while (continuationToken);
+
+    if (matches.length === 0) {
+      return {
+        success: false,
+        error: { message: `No users found matching: ${trimmed}` },
+      };
+    }
+
+    // Resolve all storage keys in parallel
+    const storageResults = await Promise.allSettled(
+      matches.map(m => this.getGraphStorageKey(m.descriptor))
+    );
+
+    const data = matches.map((m, i) => {
+      const sr = storageResults[i];
+      const id = sr.status === "fulfilled" && sr.value.success && sr.value.data?.value
+        ? sr.value.data.value
+        : m.originId;
+      return {
+        id,
+        descriptor: m.descriptor,
+        displayName: m.displayName,
+        email: m.email,
+        originId: m.originId,
+      };
+    });
+
+    return { success: true, data };
+  }
 }

@@ -109,6 +109,76 @@ rm /tmp/ado-comment-wi-42731.md
 
 ---
 
+## @Mentions in Comments
+
+When a comment needs to mention (tag) an ADO user, resolve the mention BEFORE writing the `/tmp` comment file.
+
+### Mention Format
+
+Use markdown mention syntax in the comment body:
+
+```
+@<userID>
+```
+
+Where `userID` is the identity GUID returned by `get-user-by-email` or `search-users-by-name`.
+
+### Email-Based Mentions
+
+When you see `@email@domain.com` in text you intend to write as a comment:
+
+1. Look up the user:
+   ```bash
+   npx tsx ado.ts get-user-by-email "scott@redhawk-tech.com"
+   ```
+2. Present the result to the user for confirmation.
+3. After confirmation, use `@<id>` in the comment where `id` is from the response.
+
+### Name-Based Mentions
+
+When the user says "tag Scott Schulz" or "mention Scott":
+
+1. Search for users:
+   ```bash
+   npx tsx ado.ts search-users-by-name "Scott"
+   ```
+2. The command returns an array of matching users. **ALWAYS present ALL matches to the user and ask them to pick** - never auto-select, even for a single match.
+3. After the user picks, use `@<id>` in the comment.
+
+### Example Workflow
+
+```
+User: "Comment on PR !3445 saying great work, tag Scott Schulz"
+
+Step 1 - Search for user:
+  npx tsx ado.ts search-users-by-name "Scott Schulz"
+  -> Returns: [{ id: "62a9f1bd-...", displayName: "Scott Schulz", email: "scott@company.com" }]
+
+Step 2 - Present match(es) to user, ask them to confirm.
+
+Step 3 - Write /tmp/ado-comment-pr-3445.md with resolved mention:
+  Great work @<62a9f1bd-...>!
+
+Step 4 - Post:
+  COMMENT=$(cat /tmp/ado-comment-pr-3445.md) && npx tsx ado.ts add-pr-comment 3445 "$COMMENT"
+```
+
+### Multiple Mentions
+
+When a comment has multiple @mentions, resolve each one before writing the `/tmp` file. Run all lookups first, present results to user, then write the file with all resolved mentions.
+
+### Fallback
+
+If a user lookup fails (no matches found), write the mention as plain text (e.g., `@Scott Schulz`) and inform the user that the mention could not be resolved.
+
+---
+
+## ADO User Search Rules
+
+- When searching for users by name, ALWAYS use the user's exact input text. Never autocorrect, fix spelling, or assume typos in names. "Scot" and "Scott" are different searches that return different results. If ambiguous, search with the exact text first, then ask the user if they want a broader search.
+
+---
+
 ## CLI Commands (Recommended)
 
 ### Work Items
@@ -202,6 +272,12 @@ npx tsx ado.ts list-teams "My Project"
 ```bash
 # Look up user by email (returns ID for PR reviewers and comment mentions)
 npx tsx ado.ts get-user-by-email "user@example.com"
+
+# Search users by display name (returns array of matches for disambiguation)
+npx tsx ado.ts search-users-by-name "Scott"
+
+# With max results limit
+npx tsx ado.ts search-users-by-name "Scott" 50
 ```
 
 ---
@@ -296,7 +372,7 @@ All methods return:
 
 ---
 
-## Available Methods (46 total)
+## Available Methods (47 total)
 
 ### Work Items (12 methods)
 
@@ -361,13 +437,14 @@ All methods return:
 | `listIterations(project, team)` | List iterations |
 | `listAreas(project)` | List area paths |
 
-### Graph / Identity (3 methods)
+### Graph / Identity (4 methods)
 
 | Method | Description |
 |--------|-------------|
 | `listGraphUsers(subjectTypes?, continuationToken?)` | List graph users (paginated) |
 | `getGraphStorageKey(descriptor)` | Resolve descriptor to identity GUID |
 | `getUserByEmail(email)` | Look up user by email (returns ID for PR reviewers/mentions) |
+| `searchUsersByDisplayName(query, maxResults?)` | Search users by name (returns array for disambiguation) |
 
 ---
 

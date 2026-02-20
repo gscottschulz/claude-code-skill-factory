@@ -38,6 +38,7 @@
  *
  *   Identity:
  *     get-user-by-email <email>                        Look up user by email
+ *     search-users-by-name <name> [max]                Search users by display name
  *
  * Environment:
  *   ADO_ORGANIZATION  Azure DevOps organization name
@@ -94,6 +95,7 @@ Projects:
 
 Identity:
   get-user-by-email <email>                        Look up user by email
+  search-users-by-name <name> [max]                Search users by display name
 
 Environment:
   ADO_ORGANIZATION  Azure DevOps organization name
@@ -125,6 +127,7 @@ const VALID_COMMANDS = new Set([
   "get-project",
   "list-teams",
   "get-user-by-email",
+  "search-users-by-name",
   "help",
   "--help",
   "-h",
@@ -150,7 +153,7 @@ async function main(): Promise<void> {
   }
 
   // Commands that never need a project argument
-  const NO_PROJECT_COMMANDS = new Set(["list-projects", "get-user-by-email"]);
+  const NO_PROJECT_COMMANDS = new Set(["list-projects", "get-user-by-email", "search-users-by-name"]);
 
   // Commands where the first numeric arg is a PR ID (project + repo auto-resolved)
   const PR_COMMANDS = new Set([
@@ -259,6 +262,7 @@ async function main(): Promise<void> {
 
     // Identity
     "get-user-by-email": () => client.getUserByEmail(args[0]),
+    "search-users-by-name": () => client.searchUsersByDisplayName(args[0], args[1] ? parseInt(args[1]) : undefined),
   };
 
   try {

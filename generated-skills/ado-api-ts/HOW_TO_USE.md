@@ -122,6 +122,12 @@ npx tsx ado.ts list-teams "My Project"
 # Look up a user by email address
 # Returns the identity GUID (storage key) for PR reviewer assignment and comment mentions
 npx tsx ado.ts get-user-by-email "jane.smith@company.com"
+
+# Search users by display name (returns array of matches)
+npx tsx ado.ts search-users-by-name "Jane"
+
+# Search with max results limit
+npx tsx ado.ts search-users-by-name "Jane" 50
 ```
 
 ---
