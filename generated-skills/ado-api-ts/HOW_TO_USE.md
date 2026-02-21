@@ -17,6 +17,17 @@ npm install --prefix /path/to/ado-api-ts
 
 ---
 
+## Path Resolution
+
+All CLI examples below use bare `ado.ts` for brevity. Always use the full path to the installed skill location:
+
+- **User-level**: `~/.claude/skills/ado-api-ts/ado.ts`
+- **Project-level**: `.claude/skills/ado-api-ts/ado.ts`
+
+Example: `npx tsx ~/.claude/skills/ado-api-ts/ado.ts get-work-item 42731`
+
+---
+
 ## CLI Usage
 
 All CLI commands follow the pattern:

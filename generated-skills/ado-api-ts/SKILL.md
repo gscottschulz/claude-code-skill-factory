@@ -9,22 +9,35 @@ description: Azure DevOps REST API client (TypeScript) - USE ado.ts CLI or ado_c
 
 **ALWAYS use the CLI (`ado.ts`) or TypeScript client (`ado_client.ts`) - NEVER compose raw curl/HTTP requests.**
 
+### Path Resolution (IMPORTANT)
+
+Before running any command, determine the full path to this skill's directory (where this SKILL.md file is located). **NEVER use bare `ado.ts` or relative paths like `generated-skills/ado-api-ts/ado.ts`** - they will fail if the current working directory is not the source repo.
+
+Common install locations:
+- **User-level**: `~/.claude/skills/ado-api-ts/`
+- **Project-level**: `.claude/skills/ado-api-ts/`
+- **Source repo**: `generated-skills/ado-api-ts/`
+
 ### Option 1: CLI (Simplest)
 
 ```bash
-npx tsx generated-skills/ado-api-ts/ado.ts <command> [args...]
+npx tsx ~/.claude/skills/ado-api-ts/ado.ts <command> [args...]
 ```
+
+Substitute the path above with your actual install location.
 
 ### Option 2: TypeScript Client (For Complex Scripts)
 
 ```bash
 npx tsx -e "
-import { AzureDevOpsClient } from './generated-skills/ado-api-ts/ado_client.js';
+import { AzureDevOpsClient } from './ado_client.js';
 const client = new AzureDevOpsClient();
 const result = await client.getWorkItem('PROJECT', 12345);
 console.log(JSON.stringify(result, null, 2));
 "
 ```
+
+Note: The `./ado_client.js` import is relative to the script location. When using `npx tsx -e`, run from the skill directory or use `npx tsx` with the full script path.
 
 **Environment variables required:**
 - `ADO_ORGANIZATION` - Your Azure DevOps organization name
@@ -181,6 +194,9 @@ If a user lookup fails (no matches found), write the mention as plain text (e.g.
 
 ## CLI Commands (Recommended)
 
+> **Note:** Examples below use bare `ado.ts` for brevity. Always use the full
+> path to your skill installation (e.g., `~/.claude/skills/ado-api-ts/ado.ts`).
+
 ### Work Items
 
 ```bash
@@ -284,11 +300,15 @@ npx tsx ado.ts search-users-by-name "Scott" 50
 
 ## TypeScript Client Examples
 
+> **Note:** Examples below assume you are running from the skill directory or
+> using `npx tsx` with the full path to the script. Imports use `./ado_client.js`
+> (relative to the script location).
+
 ### Get Work Item
 
 ```bash
 npx tsx -e "
-import { AzureDevOpsClient } from './generated-skills/ado-api-ts/ado_client.js';
+import { AzureDevOpsClient } from './ado_client.js';
 const client = new AzureDevOpsClient();
 const result = await client.getWorkItem('My Project', 42731);
 console.log(JSON.stringify(result, null, 2));
@@ -299,7 +319,7 @@ console.log(JSON.stringify(result, null, 2));
 
 ```bash
 npx tsx -e "
-import { AzureDevOpsClient } from './generated-skills/ado-api-ts/ado_client.js';
+import { AzureDevOpsClient } from './ado_client.js';
 const client = new AzureDevOpsClient();
 const result = await client.queryWorkItems('My Project', \`
   SELECT [System.Id], [System.Title], [System.State]
@@ -318,7 +338,7 @@ console.log(JSON.stringify(result, null, 2));
 ```bash
 npx tsx -e "
 import * as fs from 'fs';
-import { AzureDevOpsClient } from './generated-skills/ado-api-ts/ado_client.js';
+import { AzureDevOpsClient } from './ado_client.js';
 const client = new AzureDevOpsClient();
 const comment = fs.readFileSync('/tmp/ado-comment-pr-123.md', 'utf-8');
 const result = await client.addPullRequestThread('My Project', 'repo-id', 123, comment);
@@ -331,7 +351,7 @@ console.log(JSON.stringify(result, null, 2));
 ```bash
 npx tsx -e "
 import * as fs from 'fs';
-import { AzureDevOpsClient } from './generated-skills/ado-api-ts/ado_client.js';
+import { AzureDevOpsClient } from './ado_client.js';
 const client = new AzureDevOpsClient();
 const comment = fs.readFileSync('/tmp/ado-comment-pr-123.md', 'utf-8');
 const result = await client.addPullRequestThread(
@@ -349,7 +369,7 @@ console.log(JSON.stringify(result, null, 2));
 
 ```bash
 npx tsx -e "
-import { AzureDevOpsClient } from './generated-skills/ado-api-ts/ado_client.js';
+import { AzureDevOpsClient } from './ado_client.js';
 const client = new AzureDevOpsClient();
 const result = await client.listPullRequests('My Project', 'repo-id', 'active');
 console.log(JSON.stringify(result, null, 2));
@@ -464,6 +484,15 @@ All methods return:
 ---
 
 ## Troubleshooting
+
+**"ERR_MODULE_NOT_FOUND" or "Cannot find module" error:**
+```bash
+# You're using a relative path from the wrong directory.
+# Always use the full path to this skill's install location:
+npx tsx ~/.claude/skills/ado-api-ts/ado.ts list-projects
+# NOT: npx tsx ado.ts list-projects
+# NOT: npx tsx generated-skills/ado-api-ts/ado.ts list-projects
+```
 
 **"tsx not found" error:**
 ```bash

@@ -50,15 +50,17 @@ export ADO_PAT="your-personal-access-token"
 
 ```bash
 # List all projects
-npx tsx ado.ts list-projects
+npx tsx ~/.claude/skills/ado-api-ts/ado.ts list-projects
 
 # Get a work item
-npx tsx ado.ts get-work-item "My Project" 42731
+npx tsx ~/.claude/skills/ado-api-ts/ado.ts get-work-item "My Project" 42731
 
 # Add a PR comment
 # First write comment to /tmp/ado-comment-pr-123.md, then:
-COMMENT=$(cat /tmp/ado-comment-pr-123.md) && npx tsx ado.ts add-pr-comment "My Project" "repo-id" 123 "$COMMENT"
+COMMENT=$(cat /tmp/ado-comment-pr-123.md) && npx tsx ~/.claude/skills/ado-api-ts/ado.ts add-pr-comment "My Project" "repo-id" 123 "$COMMENT"
 ```
+
+Substitute `~/.claude/skills/ado-api-ts/` with your actual install path if different.
 
 ### TypeScript Client
 
