@@ -1,4 +1,4 @@
-# How to Use: Azure DevOps API Skill (TypeScript)
+# How to Use: Azure DevOps API Skill
 
 ## Setup
 
@@ -12,7 +12,7 @@ export ADO_PAT="your-personal-access-token"
 2. Install dependencies (if not already installed):
 
 ```bash
-npm install --prefix /path/to/ado-api-ts
+npm install --prefix /path/to/ado-api
 ```
 
 ---
@@ -21,10 +21,10 @@ npm install --prefix /path/to/ado-api-ts
 
 All CLI examples below use bare `ado.ts` for brevity. Always use the full path to the installed skill location:
 
-- **User-level**: `~/.claude/skills/ado-api-ts/ado.ts`
-- **Project-level**: `.claude/skills/ado-api-ts/ado.ts`
+- **User-level**: `~/.claude/skills/ado-api/ado.ts`
+- **Project-level**: `.claude/skills/ado-api/ado.ts`
 
-Example: `npx tsx ~/.claude/skills/ado-api-ts/ado.ts get-work-item 42731`
+Example: `npx tsx ~/.claude/skills/ado-api/ado.ts get-work-item 42731`
 
 > **ADO Linking Syntax**: In all text posted to ADO, use `#` for work items (`#1234`) and `!` for PRs (`!3445`). Never use `#` to reference a PR. See SKILL.md for full details.
 

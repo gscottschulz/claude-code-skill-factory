@@ -55,6 +55,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rewritten `SKILL.md` from documentation-only reference to functional skill usage guide
 - Feature parity with the Python ado-api skill's 43-method API surface
 
-[Unreleased]: https://github.com/gscottschulz/claude-code-skill-factory/compare/ado-api-ts-v1.1.0...HEAD
-[1.1.0]: https://github.com/gscottschulz/claude-code-skill-factory/compare/ado-api-ts-v1.0.0...ado-api-ts-v1.1.0
-[1.0.0]: https://github.com/gscottschulz/claude-code-skill-factory/releases/tag/ado-api-ts-v1.0.0
+[Unreleased]: https://github.com/gscottschulz/claude-code-skill-factory/compare/ado-api-v1.1.0...HEAD
+[1.1.0]: https://github.com/gscottschulz/claude-code-skill-factory/compare/ado-api-v1.0.0...ado-api-v1.1.0
+[1.0.0]: https://github.com/gscottschulz/claude-code-skill-factory/releases/tag/ado-api-v1.0.0

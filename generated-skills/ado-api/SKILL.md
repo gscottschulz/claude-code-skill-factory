@@ -1,9 +1,9 @@
 ---
-name: ado-api-ts
-description: Azure DevOps REST API client (TypeScript) - USE ado.ts CLI or ado_client.ts
+name: ado-api
+description: Azure DevOps REST API client - USE ado.ts CLI or ado_client.ts
 ---
 
-# Azure DevOps API Skill (TypeScript)
+# Azure DevOps API Skill
 
 ## CRITICAL: How to Use This Skill
 
@@ -11,17 +11,17 @@ description: Azure DevOps REST API client (TypeScript) - USE ado.ts CLI or ado_c
 
 ### Path Resolution (IMPORTANT)
 
-Before running any command, determine the full path to this skill's directory (where this SKILL.md file is located). **NEVER use bare `ado.ts` or relative paths like `generated-skills/ado-api-ts/ado.ts`** - they will fail if the current working directory is not the source repo.
+Before running any command, determine the full path to this skill's directory (where this SKILL.md file is located). **NEVER use bare `ado.ts` or relative paths like `generated-skills/ado-api/ado.ts`** - they will fail if the current working directory is not the source repo.
 
 Common install locations:
-- **User-level**: `~/.claude/skills/ado-api-ts/`
-- **Project-level**: `.claude/skills/ado-api-ts/`
-- **Source repo**: `generated-skills/ado-api-ts/`
+- **User-level**: `~/.claude/skills/ado-api/`
+- **Project-level**: `.claude/skills/ado-api/`
+- **Source repo**: `generated-skills/ado-api/`
 
 ### Option 1: CLI (Simplest)
 
 ```bash
-npx tsx ~/.claude/skills/ado-api-ts/ado.ts <command> [args...]
+npx tsx ~/.claude/skills/ado-api/ado.ts <command> [args...]
 ```
 
 Substitute the path above with your actual install location.
@@ -219,7 +219,7 @@ If a user lookup fails (no matches found), write the mention as plain text (e.g.
 ## CLI Commands (Recommended)
 
 > **Note:** Examples below use bare `ado.ts` for brevity. Always use the full
-> path to your skill installation (e.g., `~/.claude/skills/ado-api-ts/ado.ts`).
+> path to your skill installation (e.g., `~/.claude/skills/ado-api/ado.ts`).
 
 ### Work Items
 
@@ -513,9 +513,9 @@ All methods return:
 ```bash
 # You're using a relative path from the wrong directory.
 # Always use the full path to this skill's install location:
-npx tsx ~/.claude/skills/ado-api-ts/ado.ts list-projects
+npx tsx ~/.claude/skills/ado-api/ado.ts list-projects
 # NOT: npx tsx ado.ts list-projects
-# NOT: npx tsx generated-skills/ado-api-ts/ado.ts list-projects
+# NOT: npx tsx generated-skills/ado-api/ado.ts list-projects
 ```
 
 **"tsx not found" error:**
