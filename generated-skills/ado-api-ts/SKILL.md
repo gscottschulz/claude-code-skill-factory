@@ -45,6 +45,29 @@ Note: The `./ado_client.js` import is relative to the script location. When usin
 
 ---
 
+## ADO Linking Syntax (CRITICAL)
+
+When composing text content that will be posted to Azure DevOps (comments, descriptions, `System.History` fields), use the correct prefix syntax so ADO creates clickable links:
+
+| Reference Type | Prefix | Example | Result |
+|---------------|--------|---------|--------|
+| Work Item | `#` | `#3445` | Clickable link to work item 3445 |
+| Pull Request | `!` | `!3445` | Clickable link to PR 3445 |
+
+**Do / Don't:**
+
+| Correct | Incorrect | Why |
+|---------|-----------|-----|
+| `Fixed in !123` | `Fixed in PR #123` | `#123` links to **work item** 123, not PR 123 |
+| `See #42731 for details` | `See WI 42731` | `#42731` creates a clickable link; plain text does not |
+| `Linked to !456 and #789` | `Linked to PR 456 and WI 789` | Always use prefix syntax for clickable references |
+
+> **NEVER** use `#` to reference pull requests. `#` is for work items ONLY. Use `!` for PRs.
+
+This syntax applies to all text posted to ADO: work item comments, PR thread comments, PR descriptions, `System.History` fields, and link comments. It does NOT apply to CLI arguments, filenames, or terminal output.
+
+---
+
 ## Auto-Resolution
 
 When a command requires a `<project>` argument and you pass a **numeric ID** as the first argument instead, the CLI automatically resolves the project (and repo for PR commands) by querying the ADO API.
@@ -108,6 +131,7 @@ When writing the markdown file to `/tmp`:
 
 - Use `#` to reference work items (e.g., `#1234`) - creates proper ADO links
 - Use `!` to reference PRs (e.g., `!3445`) - creates proper ADO links
+- **NEVER** use `#` to reference pull requests - `#` is for work items only (see [ADO Linking Syntax](#ado-linking-syntax-critical) above)
 - **NEVER** use the em-dash character. Always use regular hyphen/dash (`-`)
 
 ### Cleanup

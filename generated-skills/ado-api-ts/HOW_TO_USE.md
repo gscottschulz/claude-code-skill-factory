@@ -26,6 +26,8 @@ All CLI examples below use bare `ado.ts` for brevity. Always use the full path t
 
 Example: `npx tsx ~/.claude/skills/ado-api-ts/ado.ts get-work-item 42731`
 
+> **ADO Linking Syntax**: In all text posted to ADO, use `#` for work items (`#1234`) and `!` for PRs (`!3445`). Never use `#` to reference a PR. See SKILL.md for full details.
+
 ---
 
 ## CLI Usage
@@ -49,7 +51,7 @@ npx tsx ado.ts create-work-item "My Project" "Bug" '{"System.Title":"Login fails
 npx tsx ado.ts create-work-item "My Project" "User Story" '{"System.Title":"Add dark mode","System.Description":"<div>As a user I want dark mode</div>","Microsoft.VSTS.Scheduling.StoryPoints":5}'
 
 # Update work item state
-npx tsx ado.ts update-work-item "My Project" 42731 '{"System.State":"Resolved","System.History":"Fixed in PR #123"}'
+npx tsx ado.ts update-work-item "My Project" 42731 '{"System.State":"Resolved","System.History":"Fixed in PR !123"}'
 
 # Delete a work item (moves to recycle bin)
 npx tsx ado.ts delete-work-item "My Project" 42731

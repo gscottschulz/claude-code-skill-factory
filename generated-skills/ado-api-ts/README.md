@@ -81,6 +81,7 @@ console.log(result);
 - **CLI + programmatic** - use from command line or import in scripts
 - **Full PR comment support** - general, file-level, and line-level comments
 - **@mention support** - resolve users by email or display name for ADO mention syntax
+- **ADO linking syntax** - `#` for work items, `!` for PRs in all posted text content
 - **TypeScript types** - full type safety with exported interfaces
 
 ## Files
