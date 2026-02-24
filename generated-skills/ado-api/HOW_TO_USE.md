@@ -12,7 +12,7 @@ export ADO_PAT="your-personal-access-token"
 2. Install dependencies (if not already installed):
 
 ```bash
-npm install --prefix /path/to/ado-api
+npm ci --prefix /path/to/ado-api
 ```
 
 ---
