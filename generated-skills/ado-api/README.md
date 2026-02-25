@@ -6,6 +6,7 @@ Functional TypeScript client for the Azure DevOps REST API v7.1. Provides both a
 
 - **Node.js 18+** (for native fetch support)
 - **Azure DevOps PAT** with appropriate scopes
+- **Azure CLI (`az`) is NOT required** and must NOT be used — this skill uses direct REST API calls via its own TypeScript client
 
 ## Installation
 

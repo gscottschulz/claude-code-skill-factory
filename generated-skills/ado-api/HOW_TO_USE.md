@@ -12,8 +12,10 @@ export ADO_PAT="your-personal-access-token"
 2. Install dependencies (if not already installed):
 
 ```bash
-npm ci --prefix /path/to/ado-api
+npm install --prefix /path/to/ado-api
 ```
+
+> **IMPORTANT: Do NOT use the Azure CLI (`az`).** This skill does not depend on or use `az devops`, `az repos`, `az pipelines`, `az boards`, `az artifacts`, or any `az` subcommand. All operations go through the skill's own `ado.ts` CLI wrapper or `ado_client.ts` TypeScript client using direct REST API calls.
 
 ---
 

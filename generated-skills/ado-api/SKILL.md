@@ -1,6 +1,6 @@
 ---
 name: ado-api
-description: Azure DevOps REST API client - USE ado.ts CLI or ado_client.ts
+description: Azure DevOps REST API client - USE ado.ts CLI or ado_client.ts - NEVER use az CLI
 ---
 
 # Azure DevOps API Skill
@@ -8,6 +8,8 @@ description: Azure DevOps REST API client - USE ado.ts CLI or ado_client.ts
 ## CRITICAL: How to Use This Skill
 
 **ALWAYS use the CLI (`ado.ts`) or TypeScript client (`ado_client.ts`) - NEVER compose raw curl/HTTP requests.**
+
+> **PROHIBITED: Azure CLI (`az`).** NEVER use the Azure CLI for any operation. This includes `az devops`, `az repos`, `az pipelines`, `az boards`, `az artifacts`, and any other `az` subcommand. The Azure CLI is not a dependency of this skill and must never be invoked. Use ONLY `ado.ts` (CLI wrapper) or `ado_client.ts` (programmatic client) for all Azure DevOps operations.
 
 ### Path Resolution (IMPORTANT)
 
